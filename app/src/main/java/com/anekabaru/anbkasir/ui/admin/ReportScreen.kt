@@ -4,10 +4,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.TrendingUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -17,13 +18,12 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.ui.PosViewModel
-import com.anekabaru.anbkasir.ui.theme.* // Import Theme
+import com.anekabaru.anbkasir.ui.theme.*
 import java.util.Calendar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
-    // Calculate Start of Day
     val calendar = Calendar.getInstance().apply {
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)
@@ -32,7 +32,6 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
     val startOfDay = calendar.timeInMillis
     val endOfDay = System.currentTimeMillis()
 
-    // Data Flow
     val dailySales by viewModel.getSalesTotal(startOfDay, endOfDay).collectAsState(initial = 0.0)
     val txCount by viewModel.getTxCount(startOfDay, endOfDay).collectAsState(initial = 0)
 
@@ -52,11 +51,11 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
+                    containerColor = BackgroundGray // MATCHED: Blends with background
                 )
             )
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = BackgroundGray // MATCHED: Standard app background
     ) { padding ->
         Column(
             modifier = Modifier
@@ -82,7 +81,7 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
             StatCard(
                 title = "Total Revenue",
                 value = "Rp${dailySales ?: 0.0}",
-                icon = Icons.Default.AttachMoney,
+                icon = Icons.Default.Money,
                 color = BrandGreen,
                 isHero = true
             )
@@ -99,13 +98,12 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // 3. Gross Profit (Estimated)
-            // Logic: 20% margin estimate until backend supports deep profit analysis
+            // 3. Gross Profit
             val estimatedProfit = (dailySales ?: 0.0) * 0.2
             StatCard(
                 title = "Est. Gross Profit",
                 value = "Rp${"%.2f".format(estimatedProfit)}",
-                icon = Icons.Default.TrendingUp,
+                icon = Icons.AutoMirrored.Filled.TrendingUp,
                 color = BrandOrange
             )
         }
@@ -125,7 +123,7 @@ fun StatCard(
             .fillMaxWidth()
             .height(if (isHero) 120.dp else 100.dp),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = White),
+        colors = CardDefaults.cardColors(containerColor = White), // MATCHED: White Cards
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
@@ -134,7 +132,6 @@ fun StatCard(
                 .padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon Bubble
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = color.copy(alpha = 0.1f),
@@ -152,12 +149,11 @@ fun StatCard(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Text Content
             Column(verticalArrangement = Arrangement.Center) {
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelLarge,
-                    color = TextSecondary
+                    color = TextSecondary // MATCHED
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -166,7 +162,7 @@ fun StatCard(
                         MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp)
                     else
                         MaterialTheme.typography.headlineLarge.copy(fontSize = 24.sp),
-                    color = TextPrimary
+                    color = TextPrimary // MATCHED
                 )
             }
         }

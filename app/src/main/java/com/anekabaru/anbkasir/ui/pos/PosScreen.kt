@@ -16,7 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -30,13 +29,13 @@ import com.anekabaru.anbkasir.ui.theme.*
 fun PosScreen(
     viewModel: PosViewModel,
     onBack: () -> Unit,
-    onViewCart: () -> Unit // New callback
+    onViewCart: () -> Unit // Connects to CartScreen
 ) {
     val products by viewModel.products.collectAsState()
     val cart by viewModel.cart.collectAsState()
     val total by viewModel.grandTotal.collectAsState()
 
-    // Calculate total items count
+    // Calculate total quantity of items
     val itemCount = cart.sumOf { it.quantity }
 
     Scaffold(
@@ -49,6 +48,7 @@ fun PosScreen(
                     }
                 },
                 actions = {
+                    // Sync Button
                     IconButton(onClick = { viewModel.sync() }) {
                         Icon(Icons.Default.Refresh, "Sync", tint = BrandBlue)
                     }
@@ -57,12 +57,14 @@ fun PosScreen(
             )
         },
         bottomBar = {
-            // "View Cart" Bottom Bar - Only visible if items exist
+            // "View Cart" Floating Bar - Only visible if items exist
             if (itemCount > 0) {
                 Surface(
                     shadowElevation = 16.dp,
                     color = White,
-                    modifier = Modifier.clickable { onViewCart() }
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onViewCart() } // Navigate to Cart
                 ) {
                     Row(
                         modifier = Modifier
@@ -98,13 +100,19 @@ fun PosScreen(
         containerColor = BackgroundGray
     ) { padding ->
         if (products.isEmpty()) {
-            Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                Text("No products found", color = TextSecondary)
+            Box(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("No products found.\nSync or add in Inventory.", color = TextSecondary)
             }
         } else {
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 150.dp),
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(horizontal = 16.dp),
                 contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -122,7 +130,7 @@ fun ProductCardSimple(product: ProductEntity, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(130.dp) // Taller for mobile
+            .height(130.dp)
             .clickable { onClick() },
         elevation = CardDefaults.cardElevation(2.dp),
         colors = CardDefaults.cardColors(containerColor = White),
@@ -147,13 +155,16 @@ fun ProductCardSimple(product: ProductEntity, onClick: () -> Unit) {
                 )
             }
 
+            // Name
             Text(
                 product.name,
                 style = MaterialTheme.typography.titleMedium,
                 maxLines = 2,
-                overflow = TextOverflow.Ellipsis
+                overflow = TextOverflow.Ellipsis,
+                color = TextPrimary
             )
 
+            // Price
             Text(
                 "Rp${product.sellPrice}",
                 style = MaterialTheme.typography.titleMedium,

@@ -13,23 +13,40 @@ class PosRepository @Inject constructor(
 ) {
     val products = db.posDao().getAllProducts()
     val suppliers = db.posDao().getSuppliers()
+    // NEW: Expose Sales History from DB
+    val salesHistory = db.posDao().getAllTransactions()
 
-    // --- WRITE OPERATIONS (Modified for Auto-Sync) ---
+    // --- WRITE OPERATIONS ---
 
-    // 1. Save Product -> Trigger Sync
     suspend fun saveProduct(p: ProductEntity) {
         db.posDao().insertProduct(p)
-        // Auto-Sync: Immediately try to push this to the cloud
         safeSync()
     }
 
-    // 2. Save Supplier -> Trigger Sync
+    // NEW: Update Product
+    suspend fun updateProduct(p: ProductEntity) {
+        db.posDao().updateProduct(
+            p.id, p.name, p.buyPrice, p.sellPrice,
+            p.wholesalePrice, p.wholesaleThreshold, p.stock,
+            p.category, p.barcode, System.currentTimeMillis()
+        )
+        safeSync()
+    }
+
+    // NEW: Delete Product
+    suspend fun deleteProduct(id: String) {
+        db.posDao().deleteProduct(id)
+        // Try deleting from cloud immediately (fire & forget)
+        CoroutineScope(Dispatchers.IO).launch {
+            try { api.deleteProduct(id) } catch(e: Exception) { e.printStackTrace() }
+        }
+    }
+
     suspend fun saveSupplier(s: SupplierEntity) {
         db.posDao().insertSupplier(s)
         safeSync()
     }
 
-    // 3. Record Purchase (Stock In) -> Trigger Sync
     suspend fun recordPurchase(supplierId: String, productId: String, qty: Int, cost: Double) {
         val purchase = PurchaseEntity(
             supplierId = supplierId, productId = productId, quantity = qty, totalCost = cost, isSynced = false
@@ -38,7 +55,6 @@ class PosRepository @Inject constructor(
         safeSync()
     }
 
-    // 4. Save Transaction (Sale) -> Trigger Sync
     suspend fun saveTransaction(total: Double, cashier: String, items: List<com.anekabaru.anbkasir.ui.CartItem>) {
         val txId = UUID.randomUUID().toString()
         val tx = TransactionEntity(id = txId, totalAmount = total, cashierName = cashier, isSynced = false)
@@ -52,13 +68,22 @@ class PosRepository @Inject constructor(
         }
         db.posDao().insertTransactionItems(txItems)
 
-        // Auto-Sync: Upload sale immediately so Web DB shows stock reduction
+        // Reduce Local Stock Immediately
+        items.forEach {
+            val p = it.product
+            val newStock = p.stock - it.quantity
+            db.posDao().updateProduct(
+                p.id, p.name, p.buyPrice, p.sellPrice,
+                p.wholesalePrice, p.wholesaleThreshold, newStock,
+                p.category, p.barcode, System.currentTimeMillis()
+            )
+        }
+
         safeSync()
     }
 
     // --- SYNC ENGINE ---
 
-    // Wrapper to run sync without blocking the UI if network is slow
     private fun safeSync() {
         CoroutineScope(Dispatchers.IO).launch {
             syncData()
@@ -67,14 +92,13 @@ class PosRepository @Inject constructor(
 
     suspend fun syncData() {
         try {
-            // 1. PUSH PRODUCTS (New & Edited)
+            // 1. PUSH
             val unsyncedProd = db.posDao().getUnsyncedProducts()
             if (unsyncedProd.isNotEmpty()) {
                 val res = api.pushProducts(unsyncedProd)
                 if (res.status == "success") db.posDao().markProductsSynced(res.syncedIds)
             }
 
-            // 2. PUSH TRANSACTIONS (Sales)
             val unsyncedTx = db.posDao().getUnsyncedTransactions()
             if (unsyncedTx.isNotEmpty()) {
                 val payload = unsyncedTx.map { tx ->
@@ -87,14 +111,12 @@ class PosRepository @Inject constructor(
                 if (res.status == "success") db.posDao().markTransactionsSynced(res.syncedIds)
             }
 
-            // 3. PUSH SUPPLIERS
             val unsyncedSup = db.posDao().getUnsyncedSuppliers()
             if (unsyncedSup.isNotEmpty()) {
                 val res = api.pushSuppliers(unsyncedSup)
                 if (res.status == "success") db.posDao().markSuppliersSynced(res.syncedIds)
             }
 
-            // 4. PUSH PURCHASES
             val unsyncedPur = db.posDao().getUnsyncedPurchases()
             if (unsyncedPur.isNotEmpty()) {
                 val payload = unsyncedPur.map { PurchaseSyncPayload(it.id, it.supplierId, it.productId, it.quantity, it.totalCost, it.date) }
@@ -102,7 +124,7 @@ class PosRepository @Inject constructor(
                 if (res.status == "success") db.posDao().markPurchasesSynced(res.syncedIds)
             }
 
-            // 5. PULL UPDATES (Get latest stock/products from other devices)
+            // 2. PULL (Get updates from Cloud)
             val serverProds = api.getProducts()
             db.posDao().insertProducts(serverProds.map { it.copy(isSynced = true) })
 
@@ -111,11 +133,12 @@ class PosRepository @Inject constructor(
 
         } catch (e: Exception) {
             e.printStackTrace()
-            // If offline, we just ignore the error.
-            // The data is safe in Local DB and will sync next time!
         }
     }
 
+    suspend fun getTransactionItems(txId: String): List<TransactionItemEntity> {
+        return db.posDao().getItemsForTransaction(txId)
+    }
     fun getSalesTotal(start: Long, end: Long) = db.posDao().getSalesTotal(start, end)
     fun getTxCount(start: Long, end: Long) = db.posDao().getTxCount(start, end)
 }

@@ -4,8 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ExitToApp
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,7 +28,7 @@ fun DashboardScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
+            .background(BackgroundGray) // MATCHED
     ) {
         Column(
             modifier = Modifier
@@ -36,11 +37,11 @@ fun DashboardScreen(
         ) {
             Spacer(modifier = Modifier.height(20.dp))
 
-            // Header Text using Theme Typography
+            // Header Text
             Text(
                 text = "Dashboard",
                 style = MaterialTheme.typography.headlineLarge,
-                color = MaterialTheme.colorScheme.onBackground
+                color = TextPrimary // MATCHED
             )
 
             // Role Indicator
@@ -52,24 +53,24 @@ fun DashboardScreen(
                     modifier = Modifier
                         .size(8.dp)
                         .clip(RoundedCornerShape(4.dp))
-                        .background(BrandGreen) // Semantic color
+                        .background(BrandGreen)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = role,
                     style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    color = TextSecondary // MATCHED
                 )
             }
 
             Spacer(modifier = Modifier.height(40.dp))
 
-            // Clean Action Cards using Theme Colors
+            // Clean Action Cards
             CleanActionCard(
                 title = "Point of Sale",
                 description = "Process transactions and payments",
                 icon = Icons.Default.ShoppingCart,
-                accentColor = BrandGreen, // Or MaterialTheme.colorScheme.primary
+                accentColor = BrandGreen,
                 onClick = { onNav(Routes.POS) }
             )
 
@@ -79,10 +80,22 @@ fun DashboardScreen(
                 CleanActionCard(
                     title = "Inventory",
                     description = "Manage products and stock levels",
-                    icon = Icons.Default.List,
-                    accentColor = BrandBlue, // Or MaterialTheme.colorScheme.secondary
+                    icon = Icons.AutoMirrored.Filled.List,
+                    accentColor = BrandBlue,
                     onClick = { onNav(Routes.INVENTORY) }
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // --- ADDED SALES HISTORY BUTTON ---
+                CleanActionCard(
+                    title = "Sales History",
+                    description = "View past transactions logs",
+                    icon = Icons.Default.History,
+                    accentColor = BrandBlue,
+                    onClick = { onNav(Routes.HISTORY) }
+                )
+                // ----------------------------------
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -90,7 +103,7 @@ fun DashboardScreen(
                     title = "Reports",
                     description = "Analytics and business insights",
                     icon = Icons.Default.Info,
-                    accentColor = BrandOrange, // Or MaterialTheme.colorScheme.tertiary
+                    accentColor = BrandOrange,
                     onClick = { onNav(Routes.REPORTS) }
                 )
             }
@@ -104,7 +117,7 @@ fun DashboardScreen(
                     .fillMaxWidth()
                     .height(52.dp),
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error
+                    contentColor = SystemRed // MATCHED: Using SystemRed for consistency
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
@@ -137,7 +150,7 @@ fun CleanActionCard(
             .fillMaxWidth()
             .height(88.dp),
         colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
+            containerColor = White // MATCHED
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 0.dp,
@@ -176,13 +189,13 @@ fun CleanActionCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = TextPrimary // MATCHED
                 )
-                  Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = description,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextTertiary // Custom color from Color.kt for specific shade
+                    color = TextTertiary // MATCHED
                 )
             }
 
@@ -190,7 +203,7 @@ fun CleanActionCard(
             Icon(
                 imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = DividerColor, // Custom color from Color.kt
+                tint = DividerColor, // MATCHED
                 modifier = Modifier.size(24.dp)
             )
         }

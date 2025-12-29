@@ -1,5 +1,10 @@
 package com.anekabaru.anbkasir.data.remote
 
+data class SyncResponse(
+    val status: String,
+    val syncedIds: List<String> = emptyList()
+)
+
 data class TransactionSyncPayload(
     val id: String,
     val totalAmount: Double,
@@ -24,5 +29,3 @@ data class PurchaseSyncPayload(
     val totalCost: Double,
     val date: Long
 )
-
-data class SyncResponse(val status: String, val syncedIds: List<String>)

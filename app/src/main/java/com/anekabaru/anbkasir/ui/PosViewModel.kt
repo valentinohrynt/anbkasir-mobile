@@ -25,11 +25,9 @@ class PosViewModel @Inject constructor(
     private val repository: PosRepository
 ) : ViewModel() {
 
-    // --- AUTH STATE (FIXED) ---
-    // Uses mutableStateOf so the Dashboard updates immediately upon login
+    // --- AUTH ---
     var currentUserRole by mutableStateOf("Cashier")
         private set
-
     var currentUserName by mutableStateOf("Staff")
         private set
 
@@ -54,8 +52,10 @@ class PosViewModel @Inject constructor(
         currentUserName = "Staff"
     }
 
-    // --- DATA & STATE ---
+    // --- DATA ---
     val products = repository.products.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    // NEW: Sales History
+    val salesHistory = repository.salesHistory.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _cart = MutableStateFlow<List<CartItem>>(emptyList())
     val cart = _cart.asStateFlow()
@@ -75,6 +75,22 @@ class PosViewModel @Inject constructor(
         _cart.value = list
     }
 
+    // NEW: Edit Cart Quantity (+/-)
+    fun updateCartQuantity(productId: String, delta: Int) {
+        val list = _cart.value.toMutableList()
+        val idx = list.indexOfFirst { it.product.id == productId }
+        if (idx != -1) {
+            val existing = list[idx]
+            val newQty = existing.quantity + delta
+            if (newQty <= 0) {
+                list.removeAt(idx) // Remove from cart if 0
+            } else {
+                list[idx] = existing.copy(quantity = newQty)
+            }
+            _cart.value = list
+        }
+    }
+
     fun checkout() {
         viewModelScope.launch {
             repository.saveTransaction(grandTotal.value, currentUserName, _cart.value)
@@ -85,10 +101,25 @@ class PosViewModel @Inject constructor(
 
     fun closeReceipt() { _receiptText.value = null }
 
-    // --- INVENTORY & SYNC ---
+    // --- INVENTORY ACTIONS ---
     fun addProduct(name: String, buy: Double, sell: Double, wholesale: Double, thresh: Int, stock: Int, cat: String, bar: String) {
         viewModelScope.launch {
             repository.saveProduct(ProductEntity(name=name, buyPrice=buy, sellPrice=sell, wholesalePrice=wholesale, wholesaleThreshold=thresh, stock=stock, category=cat, barcode=bar))
+        }
+    }
+
+    // NEW: Update Product
+    fun updateProduct(id: String, name: String, buy: Double, sell: Double, wholesale: Double, thresh: Int, stock: Int, cat: String, bar: String) {
+        viewModelScope.launch {
+            val p = ProductEntity(id=id, name=name, buyPrice=buy, sellPrice=sell, wholesalePrice=wholesale, wholesaleThreshold=thresh, stock=stock, category=cat, barcode=bar)
+            repository.updateProduct(p)
+        }
+    }
+
+    // NEW: Delete Product
+    fun deleteProduct(id: String) {
+        viewModelScope.launch {
+            repository.deleteProduct(id)
         }
     }
 
@@ -97,4 +128,25 @@ class PosViewModel @Inject constructor(
     // --- REPORTING WRAPPERS ---
     fun getSalesTotal(start: Long, end: Long) = repository.getSalesTotal(start, end)
     fun getTxCount(start: Long, end: Long) = repository.getTxCount(start, end)
+
+    var selectedProduct by mutableStateOf<ProductEntity?>(null)
+        private set
+
+    fun selectProduct(product: ProductEntity?) {
+        selectedProduct = product
+    }
+
+    var selectedTransaction by mutableStateOf<TransactionEntity?>(null)
+        private set
+
+    var selectedTransactionItems by mutableStateOf<List<TransactionItemEntity>>(emptyList())
+        private set
+
+    // Tambahkan fungsi ini
+    fun openTransactionDetail(tx: TransactionEntity) {
+        selectedTransaction = tx
+        viewModelScope.launch {
+            selectedTransactionItems = repository.getTransactionItems(tx.id)
+        }
+    }
 }

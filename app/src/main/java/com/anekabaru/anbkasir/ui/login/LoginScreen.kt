@@ -11,17 +11,13 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.ui.PosViewModel
-import com.anekabaru.anbkasir.ui.theme.* // Import Theme
-
-@Composable
+import com.anekabaru.anbkasir.ui.theme.* @Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     viewModel: PosViewModel
@@ -33,16 +29,16 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(BackgroundGray), // MATCHED
         contentAlignment = Alignment.Center
     ) {
         // Card-like container for the form
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.85f) // Occupy 85% of screen width
+                .fillMaxWidth(0.85f)
                 .wrapContentHeight(),
-            colors = CardDefaults.cardColors(containerColor = White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp), // Flat modern look
+            colors = CardDefaults.cardColors(containerColor = White), // MATCHED
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             shape = RoundedCornerShape(24.dp)
         ) {
             Column(
@@ -71,7 +67,7 @@ fun LoginScreen(
                 Text(
                     text = "Toko Aneka Baru",
                     style = MaterialTheme.typography.headlineLarge.copy(fontSize = 24.sp),
-                    color = TextPrimary,
+                    color = TextPrimary, // MATCHED
                     textAlign = TextAlign.Center
                 )
 
@@ -80,7 +76,7 @@ fun LoginScreen(
                 Text(
                     text = "Please enter your staff PIN\nto access the POS terminal.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary,
+                    color = TextSecondary, // MATCHED
                     textAlign = TextAlign.Center
                 )
 
@@ -95,14 +91,14 @@ fun LoginScreen(
                     },
                     label = { Text("Access PIN") },
                     leadingIcon = {
-                        Icon(Icons.Default.Lock, null, tint = TextTertiary)
+                        Icon(Icons.Default.Lock, null, tint = TextTertiary) // MATCHED
                     },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = DividerColor,
+                        unfocusedBorderColor = DividerColor, // MATCHED
                         focusedBorderColor = BrandGreen,
                         focusedLabelColor = BrandGreen,
                         cursorColor = BrandGreen
@@ -116,7 +112,7 @@ fun LoginScreen(
                     Text(
                         text = error,
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error
+                        color = SystemRed // MATCHED (Or MaterialTheme.colorScheme.error)
                     )
                 }
 
@@ -136,7 +132,7 @@ fun LoginScreen(
                         .height(52.dp),
                     shape = RoundedCornerShape(12.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = BrandGreen
+                        containerColor = BrandGreen // MATCHED
                     )
                 ) {
                     Text(
@@ -147,16 +143,16 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 5. Hint (Optional, kept discrete)
+                // 5. Hint
                 Surface(
-                    color = BackgroundGray,
+                    color = BackgroundGray, // MATCHED
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         text = "Demo: 1234 (Cashier) • 9999 (Owner)",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextTertiary
+                        color = TextTertiary // MATCHED
                     )
                 }
             }

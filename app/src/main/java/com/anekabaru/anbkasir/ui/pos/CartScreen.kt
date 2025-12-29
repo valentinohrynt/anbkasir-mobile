@@ -7,7 +7,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.AddCircle
+import androidx.compose.material.icons.filled.RemoveCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -15,7 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.ui.CartItem
@@ -90,13 +90,17 @@ fun CartScreen(viewModel: PosViewModel, onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(cart) { item ->
-                    CartItemCard(item)
+                    CartItemCard(
+                        item = item,
+                        onPlus = { viewModel.updateCartQuantity(item.product.id, 1) },
+                        onMinus = { viewModel.updateCartQuantity(item.product.id, -1) }
+                    )
                 }
             }
         }
     }
 
-    // Receipt Dialog (Same logic as before)
+    // Receipt Dialog
     if (receipt != null) {
         AlertDialog(
             onDismissRequest = { viewModel.closeReceipt() },
@@ -120,7 +124,11 @@ fun CartScreen(viewModel: PosViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-fun CartItemCard(item: CartItem) {
+fun CartItemCard(
+    item: CartItem,
+    onPlus: () -> Unit,
+    onMinus: () -> Unit
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = White),
         shape = RoundedCornerShape(12.dp),
@@ -130,20 +138,36 @@ fun CartItemCard(item: CartItem) {
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
-                color = BackgroundGray,
-                shape = RoundedCornerShape(8.dp),
-                modifier = Modifier.size(40.dp)
-            ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text("${item.quantity}x", fontWeight = FontWeight.Bold, color = TextPrimary)
+            // Quantity Controls (Replaced the static box)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onMinus, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.RemoveCircle, null, tint = TextTertiary)
+                }
+
+                Surface(
+                    color = BackgroundGray,
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.width(32.dp).height(32.dp)
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text("${item.quantity}", fontWeight = FontWeight.Bold, color = TextPrimary)
+                    }
+                }
+
+                IconButton(onClick = onPlus, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.Default.AddCircle, null, tint = BrandGreen)
                 }
             }
-            Spacer(modifier = Modifier.width(16.dp))
+
+            Spacer(modifier = Modifier.width(12.dp))
+
+            // Details
             Column(modifier = Modifier.weight(1f)) {
                 Text(item.product.name, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
                 Text("@ Rp${item.activePrice}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
             }
+
+            // Total
             Text("Rp${item.total}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
         }
     }
