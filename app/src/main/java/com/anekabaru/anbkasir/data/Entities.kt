@@ -3,6 +3,7 @@ package com.anekabaru.anbkasir.data
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import java.util.UUID
+import com.google.gson.annotations.SerializedName
 
 @Entity(tableName = "products")
 data class ProductEntity(
@@ -21,15 +22,30 @@ data class ProductEntity(
 
 @Entity(tableName = "transactions")
 data class TransactionEntity(
-    @PrimaryKey val id: String,
+    @PrimaryKey
+    @SerializedName("id")
+    val id: String,
+
+    @SerializedName("totalAmount", alternate = ["total_amount"])
     val totalAmount: Double,
+
+    @SerializedName("cashierName", alternate = ["cashier_name", "user_name"])
     val cashierName: String,
+
     val date: Long,
-    val paymentMethod: String = "CASH", // "CASH", "TRANSFER", "QRIS"
+    @SerializedName("paymentMethod", alternate = ["payment_method", "payment_type"])
+    val paymentMethod: String = "CASH",
+
+    @SerializedName("amountPaid", alternate = ["amount_paid", "paid_amount"])
     val amountPaid: Double = 0.0,
+
+    @SerializedName("changeAmount", alternate = ["change_amount", "kembalian"])
     val changeAmount: Double = 0.0,
+
     val isSynced: Boolean = false
 )
+
+// ... (Sisa file tetap sama)
 
 @Entity(tableName = "transaction_items")
 data class TransactionItemEntity(

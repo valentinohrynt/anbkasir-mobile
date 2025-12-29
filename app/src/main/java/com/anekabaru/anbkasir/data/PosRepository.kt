@@ -99,8 +99,6 @@ class PosRepository @Inject constructor(
         safeSync()
     }
 
-    // --- SYNC ENGINE ---
-
     private fun safeSync() {
         CoroutineScope(Dispatchers.IO).launch {
             syncData()
@@ -157,9 +155,25 @@ class PosRepository @Inject constructor(
             val serverSups = api.getSuppliers()
             db.posDao().insertSuppliers(serverSups.map { it.copy(isSynced = true) })
 
-            val serverTransactions = api.getSalesHistory()
-            if (serverTransactions.isNotEmpty()) {
-                db.posDao().insertTransactions(serverTransactions.map { it.copy(isSynced = true) })
+            try {
+                val serverTransactions = api.getSalesHistory()
+                if (serverTransactions.isNotEmpty()) {
+                    serverTransactions.forEach { tx ->
+                        val safeTx = TransactionEntity(
+                            id = tx.id,
+                            totalAmount = tx.totalAmount,
+                            cashierName = tx.cashierName ?: "Unknown",
+                            date = tx.date,
+                            paymentMethod = tx.paymentMethod ?: "CASH",
+                            amountPaid = tx.amountPaid,
+                            changeAmount = tx.changeAmount,
+                            isSynced = true
+                        )
+                        db.posDao().insertTransaction(safeTx)
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
 
         } catch (e: Exception) {
