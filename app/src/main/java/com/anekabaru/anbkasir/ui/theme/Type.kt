@@ -7,36 +7,61 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 
 val Typography = Typography(
-    // Dashboard Title (32.sp, Bold)
+    // Page Titles
     headlineLarge = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Bold,
         fontSize = 32.sp,
-        lineHeight = 40.sp,
-        letterSpacing = 0.sp
+        lineHeight = 40.sp
     ),
-    // Card Title (17.sp, SemiBold)
+    // Section Headers / Hero Text
+    headlineSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Bold,
+        fontSize = 24.sp,
+        lineHeight = 32.sp
+    ),
+    // AppBar Titles
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Bold,
+        fontSize = 20.sp,
+        lineHeight = 28.sp
+    ),
+    // Card Titles
     titleMedium = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.SemiBold,
-        fontSize = 17.sp,
-        lineHeight = 24.sp,
-        letterSpacing = 0.15.sp
+        fontSize = 16.sp,
+        lineHeight = 24.sp
     ),
-    // Role & Button Text (15.sp, Medium)
+    // List Item Titles
+    titleSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 15.sp,
+        lineHeight = 20.sp
+    ),
+    // Button Text
     labelLarge = TextStyle(
         fontFamily = FontFamily.Default,
-        fontWeight = FontWeight.Medium,
-        fontSize = 15.sp,
-        lineHeight = 20.sp,
-        letterSpacing = 0.1.sp
+        fontWeight = FontWeight.Bold,
+        fontSize = 14.sp,
+        lineHeight = 20.sp
     ),
-    // Card Description (13.sp, Normal)
+    // Badges / Small Labels
+    labelSmall = TextStyle(
+        fontFamily = FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+        fontSize = 11.sp,
+        lineHeight = 16.sp
+    ),
+    // Body Text
     bodyMedium = TextStyle(
         fontFamily = FontFamily.Default,
         fontWeight = FontWeight.Normal,
-        fontSize = 13.sp,
+        fontSize = 14.sp,
         lineHeight = 20.sp,
-        letterSpacing = 0.25.sp
+        color = TextSecondary
     )
 )

@@ -14,7 +14,7 @@ private val LightColorScheme = lightColorScheme(
     primary = Primary,
     secondary = Secondary,
     tertiary = Tertiary,
-    background = BackgroundGray,
+    background = BackgroundApp, // Updated
     surface = Surface,
     error = Error,
     onPrimary = White,
@@ -30,10 +30,7 @@ fun AnbKasirTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    // For this specific design, we enforce Light Mode logic
-    // because the colors provided (0xFFF5F5F5) are light-specific.
     val colorScheme = LightColorScheme
-
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {

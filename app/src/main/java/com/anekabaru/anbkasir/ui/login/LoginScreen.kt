@@ -15,9 +15,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.ui.PosViewModel
-import com.anekabaru.anbkasir.ui.theme.* @Composable
+import com.anekabaru.anbkasir.ui.theme.*
+
+@Composable
 fun LoginScreen(
     onLoginSuccess: () -> Unit,
     viewModel: PosViewModel
@@ -25,30 +26,27 @@ fun LoginScreen(
     var pin by remember { mutableStateOf("") }
     var error by remember { mutableStateOf("") }
 
-    // Full screen container with theme background
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundGray), // MATCHED
+            .background(BackgroundApp), // Updated to FAFAFA
         contentAlignment = Alignment.Center
     ) {
-        // Card-like container for the form
         Card(
             modifier = Modifier
                 .fillMaxWidth(0.85f)
                 .wrapContentHeight(),
-            colors = CardDefaults.cardColors(containerColor = White), // MATCHED
-            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+            colors = CardDefaults.cardColors(containerColor = White),
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), // Consistent elevation
             shape = RoundedCornerShape(24.dp)
         ) {
             Column(
                 modifier = Modifier.padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // 1. Icon / Logo Placeholder
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = BrandGreen.copy(alpha = 0.1f),
+                    color = SurfaceGreen, // Updated
                     modifier = Modifier.size(80.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -63,11 +61,10 @@ fun LoginScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 2. Title & Subtitle
                 Text(
                     text = "Toko Aneka Baru",
-                    style = MaterialTheme.typography.headlineLarge.copy(fontSize = 24.sp),
-                    color = TextPrimary, // MATCHED
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = TextPrimary,
                     textAlign = TextAlign.Center
                 )
 
@@ -76,13 +73,12 @@ fun LoginScreen(
                 Text(
                     text = "Please enter your staff PIN\nto access the POS terminal.",
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TextSecondary, // MATCHED
+                    color = TextSecondary,
                     textAlign = TextAlign.Center
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // 3. PIN Input
                 OutlinedTextField(
                     value = pin,
                     onValueChange = {
@@ -90,35 +86,33 @@ fun LoginScreen(
                         error = ""
                     },
                     label = { Text("Access PIN") },
-                    leadingIcon = {
-                        Icon(Icons.Default.Lock, null, tint = TextTertiary) // MATCHED
-                    },
+                    leadingIcon = { Icon(Icons.Default.Lock, null, tint = TextTertiary) },
                     visualTransformation = PasswordVisualTransformation(),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = DividerColor, // MATCHED
                         focusedBorderColor = BrandGreen,
+                        unfocusedBorderColor = BorderColor, // Updated
                         focusedLabelColor = BrandGreen,
-                        cursorColor = BrandGreen
+                        cursorColor = BrandGreen,
+                        focusedContainerColor = White,
+                        unfocusedContainerColor = White
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
 
-                // Error Message
                 if (error.isNotEmpty()) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = error,
                         style = MaterialTheme.typography.labelSmall,
-                        color = SystemRed // MATCHED (Or MaterialTheme.colorScheme.error)
+                        color = SystemRed
                     )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 4. Login Button
                 Button(
                     onClick = {
                         if (viewModel.login(pin)) {
@@ -131,28 +125,25 @@ fun LoginScreen(
                         .fillMaxWidth()
                         .height(52.dp),
                     shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = BrandGreen // MATCHED
-                    )
+                    colors = ButtonDefaults.buttonColors(containerColor = BrandGreen)
                 ) {
                     Text(
                         text = "Access Dashboard",
-                        style = MaterialTheme.typography.labelLarge.copy(fontSize = 16.sp)
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // 5. Hint
                 Surface(
-                    color = BackgroundGray, // MATCHED
+                    color = BackgroundApp,
                     shape = RoundedCornerShape(8.dp)
                 ) {
                     Text(
                         text = "Demo: 1234 (Cashier) • 9999 (Owner)",
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                         style = MaterialTheme.typography.labelSmall,
-                        color = TextTertiary // MATCHED
+                        color = TextTertiary
                     )
                 }
             }

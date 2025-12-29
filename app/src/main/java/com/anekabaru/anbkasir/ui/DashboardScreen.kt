@@ -24,7 +24,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.ui.components.PullToRefreshLayout
 import com.anekabaru.anbkasir.ui.theme.*
 
@@ -40,7 +39,7 @@ fun DashboardScreen(
     val isSyncing by viewModel.isSyncing.collectAsState()
 
     Scaffold(
-        containerColor = Color(0xFFFAFAFA)
+        containerColor = BackgroundApp // Theme Color
     ) { padding ->
         PullToRefreshLayout(
             isRefreshing = isSyncing,
@@ -68,12 +67,11 @@ fun DashboardScreen(
                             Text(
                                 "Aneka Baru",
                                 style = MaterialTheme.typography.titleLarge,
-                                color = TextPrimary,
-                                fontWeight = FontWeight.Bold
+                                color = TextPrimary
                             )
                             Text(
                                 "Kasir Management",
-                                style = MaterialTheme.typography.bodySmall,
+                                style = MaterialTheme.typography.bodySmall, // Use standard bodySmall
                                 color = TextSecondary
                             )
                         }
@@ -82,13 +80,13 @@ fun DashboardScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFF0F9FF)),
+                                .background(SurfaceBlue), // Theme Surface Color
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Outlined.TrendingUp,
                                 contentDescription = null,
-                                tint = Color(0xFF0EA5E9),
+                                tint = BrandBlue, // Theme Brand Color
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -112,7 +110,7 @@ fun DashboardScreen(
                             title = "Point of Sale",
                             subtitle = "New Transaction",
                             icon = Icons.Default.PointOfSale,
-                            color = Color(0xFF10B981),
+                            color = BrandGreen, // Theme Color
                             onClick = onNavigateToPos,
                             modifier = Modifier.weight(1f)
                         )
@@ -120,7 +118,7 @@ fun DashboardScreen(
                             title = "Inventory",
                             subtitle = "Stock Management",
                             icon = Icons.Default.Inventory,
-                            color = Color(0xFF3B82F6),
+                            color = BrandBlue, // Theme Color
                             onClick = onNavigateToInventory,
                             modifier = Modifier.weight(1f)
                         )
@@ -134,7 +132,7 @@ fun DashboardScreen(
                             title = "History",
                             subtitle = "Past Transactions",
                             icon = Icons.Default.History,
-                            color = Color(0xFFF59E0B),
+                            color = BrandOrange, // Theme Color
                             onClick = onNavigateToHistory,
                             modifier = Modifier.weight(1f)
                         )
@@ -142,7 +140,7 @@ fun DashboardScreen(
                             title = "Reports",
                             subtitle = "Analytics",
                             icon = Icons.Default.Assessment,
-                            color = Color(0xFFEF4444),
+                            color = SystemRed, // Theme Color
                             onClick = onNavigateToReport,
                             modifier = Modifier.weight(1f)
                         )
@@ -196,16 +194,13 @@ fun CompactMenuCard(
             Column {
                 Text(
                     title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 15.sp
+                    style = MaterialTheme.typography.titleSmall, // 15.sp defined in Type.kt
+                    color = TextPrimary
                 )
                 Text(
                     subtitle,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = TextSecondary,
-                    fontSize = 11.sp
+                    style = MaterialTheme.typography.labelSmall, // 11.sp defined in Type.kt
+                    color = TextSecondary
                 )
             }
         }

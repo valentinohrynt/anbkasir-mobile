@@ -1,6 +1,5 @@
 package com.anekabaru.anbkasir.ui.admin
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -9,16 +8,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Receipt
-import androidx.compose.material.icons.filled.ShoppingBag
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.data.TransactionItemEntity
 import com.anekabaru.anbkasir.ui.PosViewModel
 import com.anekabaru.anbkasir.ui.theme.*
@@ -46,43 +41,40 @@ fun TransactionDetailScreen(
                 title = { Text("Transaction Details", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = White)
             )
         },
-        containerColor = BackgroundGray
+        containerColor = BackgroundApp
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(20.dp)) {
-
-            // 1. Header Card (Info Transaksi)
             Card(
                 colors = CardDefaults.cardColors(containerColor = White),
-                shape = RoundedCornerShape(16.dp),
-                elevation = CardDefaults.cardElevation(0.dp)
+                shape = RoundedCornerShape(12.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.Receipt, null, tint = BrandBlue, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("ID: #${transaction.id.take(8).uppercase()}", style = MaterialTheme.typography.titleMedium, fontFamily = FontFamily.Monospace)
+                        Text("#${transaction.id.take(8).uppercase()}", style = MaterialTheme.typography.titleMedium, fontFamily = FontFamily.Monospace)
                     }
-                    Divider(color = BackgroundGray)
+                    Divider(color = BorderColor)
                     Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                        Text("Date", color = TextSecondary)
+                        Text("Date", style = MaterialTheme.typography.bodyMedium)
                         Text(
                             SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(transaction.date)),
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Medium
+                            style = MaterialTheme.typography.titleSmall
                         )
                     }
                     Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                        Text("Cashier", color = TextSecondary)
+                        Text("Cashier", style = MaterialTheme.typography.bodyMedium)
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Icon(Icons.Default.Person, null, tint = TextTertiary, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(transaction.cashierName, color = TextPrimary, fontWeight = FontWeight.Medium)
+                            Text(transaction.cashierName, style = MaterialTheme.typography.titleSmall)
                         }
                     }
                 }
@@ -93,7 +85,6 @@ fun TransactionDetailScreen(
             Text("Items Purchased", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 2. List Barang
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -105,7 +96,6 @@ fun TransactionDetailScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // 3. Footer Total
             Surface(
                 color = White,
                 shape = RoundedCornerShape(16.dp),
@@ -117,15 +107,13 @@ fun TransactionDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column {
-                        Text("Total Amount", color = TextSecondary, style = MaterialTheme.typography.labelMedium)
+                        Text("Total Amount", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
                         Text(
                             "Rp${"%.2f".format(transaction.totalAmount)}",
                             color = BrandGreen,
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.headlineSmall
                         )
                     }
-                    // Optional: Print Button Icon could go here
                 }
             }
         }
@@ -137,27 +125,27 @@ fun TransactionItemRow(item: TransactionItemEntity) {
     Card(
         colors = CardDefaults.cardColors(containerColor = White),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                color = BackgroundGray,
+                color = BackgroundApp,
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.size(40.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text("${item.quantity}x", fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text("${item.quantity}x", style = MaterialTheme.typography.labelLarge, color = TextPrimary)
                 }
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(item.productName, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
-                Text("@ Rp${item.priceSnapshot}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                Text(item.productName, style = MaterialTheme.typography.titleSmall)
+                Text("@ Rp${item.priceSnapshot}", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
             }
-            Text("Rp${item.subtotal}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Text("Rp${item.subtotal}", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
         }
     }
 }

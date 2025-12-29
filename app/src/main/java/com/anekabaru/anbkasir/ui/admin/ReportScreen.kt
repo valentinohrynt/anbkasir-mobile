@@ -1,12 +1,15 @@
 package com.anekabaru.anbkasir.ui.admin
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Assessment
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.Receipt
@@ -14,6 +17,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
@@ -39,26 +43,7 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
     val isSyncing by viewModel.isSyncing.collectAsState()
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        "Financial Report",
-                        style = MaterialTheme.typography.headlineLarge.copy(fontSize = 24.sp),
-                        color = TextPrimary
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextPrimary)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BackgroundGray
-                )
-            )
-        },
-        containerColor = BackgroundGray
+        containerColor = BackgroundApp
     ) { padding ->
         PullToRefreshLayout(
             isRefreshing = isSyncing,
@@ -68,52 +53,112 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(rememberScrollState()) // Penting agar bisa di-scroll saat di-pull
-                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState())
             ) {
-                // Header Section
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.DateRange, null, tint = TextSecondary, modifier = Modifier.size(20.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        "TODAY'S SUMMARY",
-                        style = MaterialTheme.typography.labelLarge,
-                        color = TextSecondary,
-                        letterSpacing = 1.sp
-                    )
+                // --- CUSTOM HEADER (Matches Inventory/History Style) ---
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(White)
+                        .padding(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Left: Back Button & Title
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            IconButton(onClick = onBack) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    "Back",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Column {
+                                Text(
+                                    "Financial Report",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    "Daily Analytics",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
+
+                        // Right: Decorative Icon (Red for Reports)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(SurfaceRed), // Red Background
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Assessment,
+                                contentDescription = null,
+                                tint = SystemRed, // Red Icon
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
+                // --- CONTENT ---
+                Column(modifier = Modifier.padding(20.dp)) {
 
-                // 1. Total Sales Card (Hero Card)
-                StatCard(
-                    title = "Total Revenue",
-                    value = "Rp${dailySales ?: 0.0}",
-                    icon = Icons.Default.Money,
-                    color = BrandGreen,
-                    isHero = true
-                )
+                    // Section Title
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.DateRange, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "TODAY'S SUMMARY",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary,
+                            letterSpacing = 1.sp
+                        )
+                    }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
 
-                // 2. Transaction Count
-                StatCard(
-                    title = "Transactions",
-                    value = "$txCount Orders",
-                    icon = Icons.Default.Receipt,
-                    color = BrandBlue
-                )
+                    // Hero Card (Revenue)
+                    StatCard(
+                        title = "Total Revenue",
+                        value = "Rp${dailySales ?: 0.0}",
+                        icon = Icons.Default.Money,
+                        color = BrandGreen,
+                        isHero = true
+                    )
 
-                Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                // 3. Gross Profit
-                val estimatedProfit = (dailySales ?: 0.0) * 0.2
-                StatCard(
-                    title = "Est. Gross Profit",
-                    value = "Rp${"%.2f".format(estimatedProfit)}",
-                    icon = Icons.AutoMirrored.Filled.TrendingUp,
-                    color = BrandOrange
-                )
+                    // Secondary Cards
+                    StatCard(
+                        title = "Transactions",
+                        value = "$txCount Orders",
+                        icon = Icons.Default.Receipt,
+                        color = BrandBlue
+                    )
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    val estimatedProfit = (dailySales ?: 0.0) * 0.2
+                    StatCard(
+                        title = "Est. Gross Profit",
+                        value = "Rp${"%.2f".format(estimatedProfit)}",
+                        icon = Icons.AutoMirrored.Filled.TrendingUp,
+                        color = BrandOrange
+                    )
+                }
             }
         }
     }
@@ -128,22 +173,18 @@ fun StatCard(
     isHero: Boolean = false
 ) {
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(if (isHero) 120.dp else 100.dp),
-        shape = RoundedCornerShape(20.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp), // Consistent 16dp
         colors = CardDefaults.cardColors(containerColor = White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp),
+            modifier = Modifier.padding(20.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Surface(
-                shape = RoundedCornerShape(16.dp),
-                color = color.copy(alpha = 0.1f),
+                shape = RoundedCornerShape(12.dp),
+                color = color.copy(alpha = 0.1f), // Soft background matching the icon color
                 modifier = Modifier.size(if (isHero) 56.dp else 48.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {
@@ -158,19 +199,16 @@ fun StatCard(
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            Column(verticalArrangement = Arrangement.Center) {
+            Column {
                 Text(
                     text = title,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelSmall,
                     color = TextSecondary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = value,
-                    style = if (isHero)
-                        MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp)
-                    else
-                        MaterialTheme.typography.headlineLarge.copy(fontSize = 24.sp),
+                    style = if (isHero) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
                     color = TextPrimary
                 )
             }

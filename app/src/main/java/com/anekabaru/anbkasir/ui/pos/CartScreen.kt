@@ -7,17 +7,15 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.AddCircle
-import androidx.compose.material.icons.filled.RemoveCircle
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.ui.CartItem
 import com.anekabaru.anbkasir.ui.PosViewModel
 import com.anekabaru.anbkasir.ui.theme.*
@@ -35,14 +33,13 @@ fun CartScreen(viewModel: PosViewModel, onBack: () -> Unit) {
                 title = { Text("Review Order", style = MaterialTheme.typography.titleLarge) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextPrimary)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = White)
             )
         },
         bottomBar = {
-            // Checkout Section fixed at bottom
             Surface(
                 shadowElevation = 16.dp,
                 color = White,
@@ -53,12 +50,11 @@ fun CartScreen(viewModel: PosViewModel, onBack: () -> Unit) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text("Total Amount", style = MaterialTheme.typography.titleMedium, color = TextSecondary)
+                        Text("Total Amount", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
                         Text(
                             "Rp${"%.2f".format(total)}",
-                            style = MaterialTheme.typography.headlineMedium,
-                            color = BrandGreen,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = BrandGreen
                         )
                     }
                     Spacer(modifier = Modifier.height(16.dp))
@@ -69,19 +65,19 @@ fun CartScreen(viewModel: PosViewModel, onBack: () -> Unit) {
                         colors = ButtonDefaults.buttonColors(containerColor = BrandGreen),
                         enabled = cart.isNotEmpty()
                     ) {
-                        Text("CONFIRM PAYMENT", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text("CONFIRM PAYMENT", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
         },
-        containerColor = BackgroundGray
+        containerColor = BackgroundApp
     ) { padding ->
         if (cart.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentAlignment = Alignment.Center
             ) {
-                Text("Cart is empty", color = TextSecondary)
+                Text("Cart is empty", style = MaterialTheme.typography.bodyMedium)
             }
         } else {
             LazyColumn(
@@ -100,21 +96,26 @@ fun CartScreen(viewModel: PosViewModel, onBack: () -> Unit) {
         }
     }
 
-    // Receipt Dialog
     if (receipt != null) {
         AlertDialog(
             onDismissRequest = { viewModel.closeReceipt() },
             containerColor = White,
-            title = { Text("Transaction Success", color = BrandGreen) },
+            title = { Text("Transaction Success", style = MaterialTheme.typography.titleLarge, color = BrandGreen) },
             text = {
-                Surface(color = BackgroundGray, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    Text(receipt!!, fontFamily = FontFamily.Monospace, modifier = Modifier.padding(16.dp), color = TextPrimary)
+                Surface(color = BackgroundApp, shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        receipt!!,
+                        fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.padding(16.dp),
+                        color = TextPrimary,
+                        style = MaterialTheme.typography.bodyMedium
+                    )
                 }
             },
             confirmButton = {
                 Button(onClick = {
                     viewModel.closeReceipt()
-                    onBack() // Go back to products after success
+                    onBack()
                 }, colors = ButtonDefaults.buttonColors(containerColor = BrandGreen)) {
                     Text("Close")
                 }
@@ -132,43 +133,34 @@ fun CartItemCard(
     Card(
         colors = CardDefaults.cardColors(containerColor = White),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Quantity Controls (Replaced the static box)
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.background(BackgroundApp, RoundedCornerShape(8.dp))) {
                 IconButton(onClick = onMinus, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.RemoveCircle, null, tint = TextTertiary)
+                    Icon(Icons.Default.Remove, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
                 }
-
-                Surface(
-                    color = BackgroundGray,
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.width(32.dp).height(32.dp)
-                ) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text("${item.quantity}", fontWeight = FontWeight.Bold, color = TextPrimary)
-                    }
-                }
-
+                Text("${item.quantity}", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(horizontal = 8.dp))
                 IconButton(onClick = onPlus, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.AddCircle, null, tint = BrandGreen)
+                    Icon(Icons.Default.Add, null, tint = BrandGreen, modifier = Modifier.size(16.dp))
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(16.dp))
 
-            // Details
             Column(modifier = Modifier.weight(1f)) {
-                Text(item.product.name, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
-                Text("@ Rp${item.activePrice}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                Text(item.product.name, style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+                Text("@ Rp${item.activePrice}", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
             }
 
-            // Total
-            Text("Rp${item.total}", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = TextPrimary)
+            Text(
+                "Rp${item.total}",
+                style = MaterialTheme.typography.titleSmall,
+                color = BrandGreen
+            )
         }
     }
 }

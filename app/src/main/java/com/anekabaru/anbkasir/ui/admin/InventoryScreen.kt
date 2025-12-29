@@ -17,11 +17,9 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.data.ProductEntity
 import com.anekabaru.anbkasir.ui.PosViewModel
 import com.anekabaru.anbkasir.ui.components.PullToRefreshLayout
@@ -59,14 +57,14 @@ fun InventoryScreen(
                     viewModel.selectProduct(null)
                     onNavigateToForm()
                 },
-                containerColor = Color(0xFF3B82F6),
+                containerColor = BrandBlue, // Updated to Theme
                 contentColor = White,
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Icon(Icons.Default.Add, "Add Product")
             }
         },
-        containerColor = Color(0xFFFAFAFA)
+        containerColor = BackgroundApp // Updated to Theme
     ) { padding ->
         PullToRefreshLayout(
             isRefreshing = isSyncing,
@@ -94,10 +92,6 @@ fun InventoryScreen(
                         ) {
                             IconButton(
                                 onClick = onBack,
-                                modifier = Modifier
-                                    .size(40.dp)
-                                    .clip(CircleShape)
-                                    .background(Color(0xFFF3F4F6))
                             ) {
                                 Icon(
                                     Icons.AutoMirrored.Filled.ArrowBack,
@@ -111,12 +105,11 @@ fun InventoryScreen(
                                 Text(
                                     "Inventory",
                                     style = MaterialTheme.typography.titleLarge,
-                                    color = TextPrimary,
-                                    fontWeight = FontWeight.Bold
+                                    color = TextPrimary
                                 )
                                 Text(
                                     "${products.size} Products",
-                                    style = MaterialTheme.typography.bodySmall,
+                                    style = MaterialTheme.typography.bodySmall, // Using bodySmall as defined in Type.kt or default
                                     color = TextSecondary
                                 )
                             }
@@ -126,13 +119,13 @@ fun InventoryScreen(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFEFF6FF)),
+                                .background(SurfaceBlue), // Updated to Theme
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Outlined.Inventory2,
                                 contentDescription = null,
-                                tint = Color(0xFF3B82F6),
+                                tint = BrandBlue, // Updated to Theme
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -162,10 +155,10 @@ fun InventoryScreen(
                         },
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF3B82F6),
-                            unfocusedBorderColor = Color(0xFFE5E7EB),
-                            focusedContainerColor = Color(0xFFFAFAFA),
-                            unfocusedContainerColor = Color(0xFFFAFAFA)
+                            focusedBorderColor = BrandBlue,
+                            unfocusedBorderColor = BorderColor,
+                            focusedContainerColor = BackgroundApp,
+                            unfocusedContainerColor = BackgroundApp
                         ),
                         singleLine = true
                     )
@@ -246,12 +239,10 @@ fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     product.name,
-                    style = MaterialTheme.typography.titleSmall,
+                    style = MaterialTheme.typography.titleSmall, // 15.sp defined in Type.kt
                     color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    fontSize = 15.sp
+                    overflow = TextOverflow.Ellipsis
                 )
                 Spacer(modifier = Modifier.height(6.dp))
                 Row(
@@ -259,23 +250,20 @@ fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
-                        color = Color(0xFFEFF6FF),
+                        color = SurfaceBlue, // Updated to Theme
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
                             product.category,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = Color(0xFF3B82F6),
-                            fontSize = 11.sp
+                            style = MaterialTheme.typography.labelSmall, // 11.sp defined in Type.kt
+                            color = BrandBlue
                         )
                     }
                     Text(
                         "Rp${product.sellPrice}",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF10B981),
-                        fontSize = 12.sp
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = BrandGreen
                     )
                 }
             }
@@ -287,15 +275,13 @@ fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
                 Text(
                     "Stock",
                     style = MaterialTheme.typography.labelSmall,
-                    color = TextTertiary,
-                    fontSize = 10.sp
+                    color = TextTertiary
                 )
                 Text(
                     "${product.stock}",
                     style = MaterialTheme.typography.titleMedium,
-                    color = if(product.stock < 10) Color(0xFFEF4444) else TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
+                    color = if(product.stock < 10) SystemRed else TextPrimary, // Updated to Theme
+                    fontWeight = FontWeight.Bold
                 )
             }
         }

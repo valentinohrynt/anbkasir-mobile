@@ -1,5 +1,6 @@
 package com.anekabaru.anbkasir.ui.admin
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -10,7 +11,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.Inventory
 import androidx.compose.material.icons.outlined.Payments
 import androidx.compose.material3.*
@@ -19,10 +19,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.ui.PosViewModel
 import com.anekabaru.anbkasir.ui.theme.*
 
@@ -59,11 +59,9 @@ fun ProductDetailScreen(
                             onBack()
                         },
                         colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = Color(0xFFEF4444)
+                            contentColor = SystemRed
                         ),
-                        border = ButtonDefaults.outlinedButtonBorder.copy(
-                            brush = androidx.compose.ui.graphics.SolidColor(Color(0xFFEF4444))
-                        ),
+                        border = BorderStroke(1.dp, SystemRed),
                         modifier = Modifier
                             .weight(1f)
                             .height(48.dp),
@@ -71,13 +69,13 @@ fun ProductDetailScreen(
                     ) {
                         Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Delete", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Delete", style = MaterialTheme.typography.labelLarge)
                     }
 
                     Button(
                         onClick = onEdit,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF3B82F6)
+                            containerColor = BrandBlue
                         ),
                         modifier = Modifier
                             .weight(1f)
@@ -86,12 +84,12 @@ fun ProductDetailScreen(
                     ) {
                         Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Edit Product", fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        Text("Edit Product", style = MaterialTheme.typography.labelLarge)
                     }
                 }
             }
         },
-        containerColor = Color(0xFFFAFAFA)
+        containerColor = BackgroundApp
     ) { padding ->
         Column(
             modifier = Modifier
@@ -119,7 +117,7 @@ fun ProductDetailScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(Color(0xFFF3F4F6))
+                                .background(BackgroundApp) // Matches theme background
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
@@ -132,8 +130,7 @@ fun ProductDetailScreen(
                         Text(
                             "Product Details",
                             style = MaterialTheme.typography.titleLarge,
-                            color = TextPrimary,
-                            fontWeight = FontWeight.Bold
+                            color = TextPrimary
                         )
                     }
                 }
@@ -144,9 +141,7 @@ fun ProductDetailScreen(
                 Text(
                     product.name,
                     style = MaterialTheme.typography.headlineSmall,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 24.sp
+                    color = TextPrimary
                 )
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -156,15 +151,14 @@ fun ProductDetailScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
-                        color = Color(0xFFEFF6FF),
+                        color = SurfaceBlue,
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
                             product.category,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
-                            style = MaterialTheme.typography.labelMedium,
-                            color = Color(0xFF3B82F6),
-                            fontSize = 12.sp
+                            style = MaterialTheme.typography.labelSmall,
+                            color = BrandBlue
                         )
                     }
 
@@ -172,13 +166,12 @@ fun ProductDetailScreen(
                         Text(
                             "•",
                             color = TextTertiary,
-                            fontSize = 12.sp
+                            style = MaterialTheme.typography.labelSmall
                         )
                         Text(
                             product.barcode,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = TextSecondary,
-                            fontSize = 12.sp
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TextSecondary
                         )
                     }
                 }
@@ -195,7 +188,7 @@ fun ProductDetailScreen(
                 InfoSection(
                     title = "Pricing",
                     icon = Icons.Outlined.Payments,
-                    iconColor = Color(0xFF10B981)
+                    iconColor = BrandGreen
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -210,7 +203,7 @@ fun ProductDetailScreen(
                             label = "Sell Price",
                             value = "Rp${product.sellPrice}",
                             modifier = Modifier.weight(1f),
-                            valueColor = Color(0xFF10B981),
+                            valueColor = BrandGreen,
                             isHighlight = true
                         )
                     }
@@ -236,15 +229,15 @@ fun ProductDetailScreen(
                 InfoSection(
                     title = "Inventory",
                     icon = Icons.Outlined.Inventory,
-                    iconColor = Color(0xFF3B82F6)
+                    iconColor = BrandBlue
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(
-                                if (product.stock < 10) Color(0xFFFEF2F2)
-                                else Color(0xFFF0FDF4)
+                                if (product.stock < 10) SurfaceRed
+                                else SurfaceGreen
                             )
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -253,30 +246,27 @@ fun ProductDetailScreen(
                         Column {
                             Text(
                                 "Current Stock",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = TextTertiary,
-                                fontSize = 12.sp
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TextTertiary
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
                                 "${product.stock} units",
                                 style = MaterialTheme.typography.headlineSmall,
-                                color = if (product.stock < 10) Color(0xFFEF4444) else Color(0xFF10B981),
-                                fontWeight = FontWeight.Bold
+                                color = if (product.stock < 10) SystemRed else BrandGreen
                             )
                         }
 
                         if (product.stock < 10) {
                             Surface(
-                                color = Color(0xFFEF4444),
+                                color = SystemRed,
                                 shape = RoundedCornerShape(8.dp)
                             ) {
                                 Text(
                                     "Low Stock",
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = White,
-                                    fontWeight = FontWeight.Bold
+                                    color = White
                                 )
                             }
                         }
@@ -328,9 +318,7 @@ fun InfoSection(
                 Text(
                     title,
                     style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary,
-                    fontWeight = FontWeight.SemiBold,
-                    fontSize = 16.sp
+                    color = TextPrimary
                 )
             }
 
@@ -350,22 +338,20 @@ fun CompactInfoCard(
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(10.dp))
-            .background(Color(0xFFFAFAFA))
+            .background(BackgroundApp)
             .padding(12.dp)
     ) {
         Text(
             label,
             style = MaterialTheme.typography.labelSmall,
-            color = TextTertiary,
-            fontSize = 11.sp
+            color = TextTertiary
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             value,
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.titleSmall,
             color = valueColor,
-            fontWeight = if (isHighlight) FontWeight.Bold else FontWeight.SemiBold,
-            fontSize = 15.sp
+            fontWeight = if (isHighlight) FontWeight.Bold else FontWeight.SemiBold
         )
     }
 }

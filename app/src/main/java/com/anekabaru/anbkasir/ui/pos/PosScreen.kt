@@ -6,14 +6,15 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
+import androidx.compose.material.icons.filled.Store
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,48 +40,25 @@ fun PosScreen(
     val cart by viewModel.cart.collectAsState()
     val total by viewModel.grandTotal.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
-
     var searchQuery by remember { mutableStateOf("") }
 
     val filteredProducts = remember(products, searchQuery) {
-        if (searchQuery.isBlank()) {
-            products
-        } else {
-            products.filter {
-                it.name.contains(searchQuery, ignoreCase = true) ||
-                        it.category.contains(searchQuery, ignoreCase = true) ||
-                        (it.barcode ?: "").contains(searchQuery)
-            }
+        if (searchQuery.isBlank()) products else products.filter {
+            it.name.contains(searchQuery, ignoreCase = true) ||
+                    it.category.contains(searchQuery, ignoreCase = true) ||
+                    (it.barcode ?: "").contains(searchQuery)
         }
     }
 
     val itemCount = cart.sumOf { it.quantity }
 
     Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Product Catalog", style = MaterialTheme.typography.titleLarge) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back")
-                    }
-                },
-                actions = {
-                    IconButton(onClick = { viewModel.sync() }) {
-                        Icon(Icons.Default.Refresh, "Sync", tint = BrandBlue)
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = White)
-            )
-        },
         bottomBar = {
             if (itemCount > 0) {
                 Surface(
                     shadowElevation = 16.dp,
                     color = White,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onViewCart() }
+                    modifier = Modifier.fillMaxWidth().clickable { onViewCart() }
                 ) {
                     Row(
                         modifier = Modifier
@@ -92,15 +70,10 @@ fun PosScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text(
-                                "$itemCount Items",
-                                color = White,
-                                style = MaterialTheme.typography.bodyMedium
-                            )
+                            Text("$itemCount Items", color = White, style = MaterialTheme.typography.labelSmall)
                             Text(
                                 "Total: Rp${"%.2f".format(total)}",
                                 color = White,
-                                fontWeight = FontWeight.Bold,
                                 style = MaterialTheme.typography.titleMedium
                             )
                         }
@@ -113,7 +86,7 @@ fun PosScreen(
                 }
             }
         },
-        containerColor = BackgroundGray
+        containerColor = BackgroundApp
     ) { padding ->
         PullToRefreshLayout(
             isRefreshing = isSyncing,
@@ -122,55 +95,104 @@ fun PosScreen(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
 
-                Surface(
-                    color = White,
-                    shadowElevation = 2.dp,
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                // --- CUSTOM HEADER ---
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(White)
+                        .padding(20.dp)
                 ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Left: Back Button & Title
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            IconButton(onClick = onBack) {
+                                Icon(
+                                    Icons.AutoMirrored.Filled.ArrowBack,
+                                    "Back",
+                                    tint = TextPrimary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+
+                            Column {
+                                Text(
+                                    "Point of Sale",
+                                    style = MaterialTheme.typography.titleLarge,
+                                    color = TextPrimary
+                                )
+                                Text(
+                                    "Product Catalog",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = TextSecondary
+                                )
+                            }
+                        }
+
+                        // Right: Decorative Store Icon (Replaces Refresh Button)
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(SurfaceGreen), // POS Theme Color
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Default.Store, // Decorative Icon
+                                contentDescription = null,
+                                tint = BrandGreen,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // Search Bar
                     OutlinedTextField(
                         value = searchQuery,
                         onValueChange = { searchQuery = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        placeholder = { Text("Search products...") },
-                        leadingIcon = { Icon(Icons.Default.Search, null, tint = TextTertiary) },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Search products...", style = MaterialTheme.typography.bodyMedium, color = TextTertiary) },
+                        leadingIcon = { Icon(Icons.Default.Search, null, tint = TextTertiary, modifier = Modifier.size(20.dp)) },
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = BrandGreen,
-                            unfocusedBorderColor = BackgroundGray,
-                            focusedContainerColor = BackgroundGray,
-                            unfocusedContainerColor = BackgroundGray
+                            focusedBorderColor = BrandBlue,
+                            unfocusedBorderColor = BorderColor,
+                            focusedContainerColor = BackgroundApp,
+                            unfocusedContainerColor = BackgroundApp
                         ),
                         singleLine = true
                     )
                 }
 
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // --- CONTENT ---
                 if (filteredProducts.isEmpty()) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            if(products.isEmpty()) "No products found.\nSync or add in Inventory." else "No matches found.",
+                            "No products found.",
                             color = TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                            style = MaterialTheme.typography.bodyMedium
                         )
                     }
                 } else {
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(minSize = 160.dp),
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp),
-                        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
+                        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+                        contentPadding = PaddingValues(bottom = 100.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         items(filteredProducts) { product ->
                             val qtyInCart = cart.find { it.product.id == product.id }?.quantity ?: 0
-
                             ProductCardSimple(
                                 product = product,
                                 qty = qtyInCart,
@@ -199,9 +221,9 @@ fun ProductCardSimple(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(140.dp)
+            .height(150.dp)
             .clickable(enabled = !isSelected) { onClickInitial() },
-        elevation = CardDefaults.cardElevation(if (isSelected) 4.dp else 2.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         colors = CardDefaults.cardColors(containerColor = White),
         shape = RoundedCornerShape(12.dp),
         border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, BrandGreen) else null
@@ -210,30 +232,25 @@ fun ProductCardSimple(
             modifier = Modifier.fillMaxSize().padding(12.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            Column {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(BrandBlue.copy(alpha = 0.1f))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(
+                    color = SurfaceBlue,
+                    shape = RoundedCornerShape(6.dp)
                 ) {
                     Text(
                         product.category.uppercase(),
-                        fontSize = 10.sp,
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
                         color = BrandBlue,
-                        fontWeight = FontWeight.Bold
+                        fontSize = 10.sp
                     )
                 }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
                 Text(
                     product.name,
-                    style = MaterialTheme.typography.titleMedium,
+                    style = MaterialTheme.typography.titleSmall,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
-                    color = TextPrimary,
-                    fontSize = 14.sp
+                    color = TextPrimary
                 )
             }
 
@@ -246,20 +263,13 @@ fun ProductCardSimple(
                     Surface(
                         modifier = Modifier.size(28.dp).clickable { onRemove() },
                         shape = RoundedCornerShape(8.dp),
-                        color = BackgroundGray
+                        color = BackgroundApp
                     ) {
                         Box(contentAlignment = Alignment.Center) {
                             Icon(Icons.Default.Remove, null, tint = SystemRed, modifier = Modifier.size(16.dp))
                         }
                     }
-
-                    Text(
-                        "$qty",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = TextPrimary
-                    )
-
+                    Text("$qty", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
                     Surface(
                         modifier = Modifier.size(28.dp).clickable { onAdd() },
                         shape = RoundedCornerShape(8.dp),
@@ -274,8 +284,7 @@ fun ProductCardSimple(
                 Text(
                     "Rp${product.sellPrice}",
                     style = MaterialTheme.typography.titleMedium,
-                    color = BrandGreen,
-                    fontWeight = FontWeight.Bold
+                    color = BrandGreen
                 )
             }
         }

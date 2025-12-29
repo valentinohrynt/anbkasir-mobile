@@ -6,18 +6,15 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.anekabaru.anbkasir.ui.PosViewModel
 import com.anekabaru.anbkasir.ui.theme.*
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material.icons.filled.Check
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.input.KeyboardType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -28,7 +25,6 @@ fun ProductFormScreen(
     val productToEdit = viewModel.selectedProduct
     val isEditMode = productToEdit != null
 
-    // State
     var name by remember { mutableStateOf(productToEdit?.name ?: "") }
     var buyPrice by remember { mutableStateOf(productToEdit?.buyPrice?.toString() ?: "") }
     var sellPrice by remember { mutableStateOf(productToEdit?.sellPrice?.toString() ?: "") }
@@ -49,16 +45,16 @@ fun ProductFormScreen(
         OutlinedTextField(
             value = value,
             onValueChange = onValueChange,
-            label = { Text(label, style = MaterialTheme.typography.bodyMedium) },
+            label = { Text(label, style = MaterialTheme.typography.bodyMedium, color = TextTertiary) },
             modifier = modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = OutlinedTextFieldDefaults.colors(
-                // logic: use your BrandBlue if available, otherwise fallback to Primary
                 focusedBorderColor = BrandBlue,
                 focusedLabelColor = BrandBlue,
-                // logic: use Color.LightGray if DividerColor causes issues
-                unfocusedBorderColor = Color.LightGray,
-                cursorColor = BrandBlue
+                unfocusedBorderColor = BorderColor,
+                cursorColor = BrandBlue,
+                focusedContainerColor = White,
+                unfocusedContainerColor = White
             ),
             keyboardOptions = if (isNumber) KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
             singleLine = true
@@ -68,8 +64,8 @@ fun ProductFormScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(if (isEditMode) "Edit Product" else "New Product") },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                title = { Text(if (isEditMode) "Edit Product" else "New Product", style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextPrimary) } },
                 actions = {
                     IconButton(onClick = {
                         if (name.isNotEmpty() && sellPrice.isNotEmpty()) {
@@ -95,7 +91,7 @@ fun ProductFormScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = White)
             )
         },
-        containerColor = BackgroundGray
+        containerColor = BackgroundApp
     ) { padding ->
         Column(
             modifier = Modifier
@@ -104,25 +100,33 @@ fun ProductFormScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Card(colors = CardDefaults.cardColors(containerColor = White)) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     CleanTextField(name, { name = it }, "Product Name")
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CleanTextField(category, { category = it }, "Category", Modifier.weight(1f))
                         CleanTextField(barcode, { barcode = it }, "Barcode", Modifier.weight(1f), true)
                     }
                 }
             }
 
-            Text("Pricing & Stock", style = MaterialTheme.typography.titleMedium, color = TextSecondary)
+            Text("Pricing & Stock", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
 
-            Card(colors = CardDefaults.cardColors(containerColor = White)) {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CleanTextField(buyPrice, { buyPrice = it }, "Cost Price", Modifier.weight(1f), true)
                         CleanTextField(sellPrice, { sellPrice = it }, "Sell Price", Modifier.weight(1f), true)
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CleanTextField(wholesale, { wholesale = it }, "Wholesale", Modifier.weight(1f), true)
                         CleanTextField(threshold, { threshold = it }, "Min Qty", Modifier.weight(0.6f), true)
                     }
