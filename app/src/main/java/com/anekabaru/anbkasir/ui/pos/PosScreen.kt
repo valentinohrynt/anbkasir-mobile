@@ -9,7 +9,10 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.ShoppingCart
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -22,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.data.ProductEntity
 import com.anekabaru.anbkasir.ui.PosViewModel
+import com.anekabaru.anbkasir.ui.components.PullToRefreshLayout
 import com.anekabaru.anbkasir.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -29,13 +33,27 @@ import com.anekabaru.anbkasir.ui.theme.*
 fun PosScreen(
     viewModel: PosViewModel,
     onBack: () -> Unit,
-    onViewCart: () -> Unit // Connects to CartScreen
+    onViewCart: () -> Unit
 ) {
     val products by viewModel.products.collectAsState()
     val cart by viewModel.cart.collectAsState()
     val total by viewModel.grandTotal.collectAsState()
+    val isSyncing by viewModel.isSyncing.collectAsState()
 
-    // Calculate total quantity of items
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredProducts = remember(products, searchQuery) {
+        if (searchQuery.isBlank()) {
+            products
+        } else {
+            products.filter {
+                it.name.contains(searchQuery, ignoreCase = true) ||
+                        it.category.contains(searchQuery, ignoreCase = true) ||
+                        (it.barcode ?: "").contains(searchQuery)
+            }
+        }
+    }
+
     val itemCount = cart.sumOf { it.quantity }
 
     Scaffold(
@@ -48,7 +66,6 @@ fun PosScreen(
                     }
                 },
                 actions = {
-                    // Sync Button
                     IconButton(onClick = { viewModel.sync() }) {
                         Icon(Icons.Default.Refresh, "Sync", tint = BrandBlue)
                     }
@@ -57,14 +74,13 @@ fun PosScreen(
             )
         },
         bottomBar = {
-            // "View Cart" Floating Bar - Only visible if items exist
             if (itemCount > 0) {
                 Surface(
                     shadowElevation = 16.dp,
                     color = White,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { onViewCart() } // Navigate to Cart
+                        .clickable { onViewCart() }
                 ) {
                     Row(
                         modifier = Modifier
@@ -99,26 +115,71 @@ fun PosScreen(
         },
         containerColor = BackgroundGray
     ) { padding ->
-        if (products.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text("No products found.\nSync or add in Inventory.", color = TextSecondary)
-            }
-        } else {
-            LazyVerticalGrid(
-                columns = GridCells.Adaptive(minSize = 150.dp),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .padding(horizontal = 16.dp),
-                contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(products) { product ->
-                    ProductCardSimple(product) { viewModel.addToCart(product) }
+        PullToRefreshLayout(
+            isRefreshing = isSyncing,
+            onRefresh = { viewModel.sync() },
+            modifier = Modifier.padding(padding)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+
+                Surface(
+                    color = White,
+                    shadowElevation = 2.dp,
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        placeholder = { Text("Search products...") },
+                        leadingIcon = { Icon(Icons.Default.Search, null, tint = TextTertiary) },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = BrandGreen,
+                            unfocusedBorderColor = BackgroundGray,
+                            focusedContainerColor = BackgroundGray,
+                            unfocusedContainerColor = BackgroundGray
+                        ),
+                        singleLine = true
+                    )
+                }
+
+                if (filteredProducts.isEmpty()) {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            if(products.isEmpty()) "No products found.\nSync or add in Inventory." else "No matches found.",
+                            color = TextSecondary,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Adaptive(minSize = 160.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp),
+                        contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(filteredProducts) { product ->
+                            val qtyInCart = cart.find { it.product.id == product.id }?.quantity ?: 0
+
+                            ProductCardSimple(
+                                product = product,
+                                qty = qtyInCart,
+                                onAdd = { viewModel.updateCartQuantity(product.id, 1) },
+                                onRemove = { viewModel.updateCartQuantity(product.id, -1) },
+                                onClickInitial = { viewModel.addToCart(product) }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -126,51 +187,97 @@ fun PosScreen(
 }
 
 @Composable
-fun ProductCardSimple(product: ProductEntity, onClick: () -> Unit) {
+fun ProductCardSimple(
+    product: ProductEntity,
+    qty: Int,
+    onAdd: () -> Unit,
+    onRemove: () -> Unit,
+    onClickInitial: () -> Unit
+) {
+    val isSelected = qty > 0
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .height(130.dp)
-            .clickable { onClick() },
-        elevation = CardDefaults.cardElevation(2.dp),
+            .height(140.dp)
+            .clickable(enabled = !isSelected) { onClickInitial() },
+        elevation = CardDefaults.cardElevation(if (isSelected) 4.dp else 2.dp),
         colors = CardDefaults.cardColors(containerColor = White),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(12.dp),
+        border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, BrandGreen) else null
     ) {
         Column(
             modifier = Modifier.fillMaxSize().padding(12.dp),
             verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Category Tag
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(4.dp))
-                    .background(BrandBlue.copy(alpha = 0.1f))
-                    .padding(horizontal = 6.dp, vertical = 2.dp)
-            ) {
+            Column {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(BrandBlue.copy(alpha = 0.1f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        product.category.uppercase(),
+                        fontSize = 10.sp,
+                        color = BrandBlue,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
                 Text(
-                    product.category.uppercase(),
-                    fontSize = 10.sp,
-                    color = BrandBlue,
-                    fontWeight = FontWeight.Bold
+                    product.name,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    color = TextPrimary,
+                    fontSize = 14.sp
                 )
             }
 
-            // Name
-            Text(
-                product.name,
-                style = MaterialTheme.typography.titleMedium,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                color = TextPrimary
-            )
+            if (isSelected) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Surface(
+                        modifier = Modifier.size(28.dp).clickable { onRemove() },
+                        shape = RoundedCornerShape(8.dp),
+                        color = BackgroundGray
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Remove, null, tint = SystemRed, modifier = Modifier.size(16.dp))
+                        }
+                    }
 
-            // Price
-            Text(
-                "Rp${product.sellPrice}",
-                style = MaterialTheme.typography.titleMedium,
-                color = BrandGreen,
-                fontWeight = FontWeight.Bold
-            )
+                    Text(
+                        "$qty",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary
+                    )
+
+                    Surface(
+                        modifier = Modifier.size(28.dp).clickable { onAdd() },
+                        shape = RoundedCornerShape(8.dp),
+                        color = BrandGreen
+                    ) {
+                        Box(contentAlignment = Alignment.Center) {
+                            Icon(Icons.Default.Add, null, tint = White, modifier = Modifier.size(16.dp))
+                        }
+                    }
+                }
+            } else {
+                Text(
+                    "Rp${product.sellPrice}",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = BrandGreen,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }

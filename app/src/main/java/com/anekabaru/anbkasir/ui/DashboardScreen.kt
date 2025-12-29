@@ -1,211 +1,213 @@
 package com.anekabaru.anbkasir.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ExitToApp
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
-import androidx.compose.material.icons.automirrored.filled.List
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Assessment
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Inventory
+import androidx.compose.material.icons.filled.PointOfSale
+import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.anekabaru.anbkasir.ui.components.PullToRefreshLayout
 import com.anekabaru.anbkasir.ui.theme.*
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
-    role: String,
-    onNav: (String) -> Unit,
-    onLogout: () -> Unit
+    viewModel: PosViewModel,
+    onNavigateToPos: () -> Unit,
+    onNavigateToInventory: () -> Unit,
+    onNavigateToHistory: () -> Unit,
+    onNavigateToReport: () -> Unit
 ) {
-    // Apply background from Theme
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(BackgroundGray) // MATCHED
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp)
+    val isSyncing by viewModel.isSyncing.collectAsState()
+
+    Scaffold(
+        containerColor = Color(0xFFFAFAFA)
+    ) { padding ->
+        PullToRefreshLayout(
+            isRefreshing = isSyncing,
+            onRefresh = { viewModel.sync() },
+            modifier = Modifier.padding(padding)
         ) {
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Header Text
-            Text(
-                text = "Dashboard",
-                style = MaterialTheme.typography.headlineLarge,
-                color = TextPrimary // MATCHED
-            )
-
-            // Role Indicator
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 4.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(8.dp)
-                        .clip(RoundedCornerShape(4.dp))
-                        .background(BrandGreen)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = role,
-                    style = MaterialTheme.typography.labelLarge,
-                    color = TextSecondary // MATCHED
-                )
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Clean Action Cards
-            CleanActionCard(
-                title = "Point of Sale",
-                description = "Process transactions and payments",
-                icon = Icons.Default.ShoppingCart,
-                accentColor = BrandGreen,
-                onClick = { onNav(Routes.POS) }
-            )
-
-            if (role == "Owner") {
-                Spacer(modifier = Modifier.height(16.dp))
-
-                CleanActionCard(
-                    title = "Inventory",
-                    description = "Manage products and stock levels",
-                    icon = Icons.AutoMirrored.Filled.List,
-                    accentColor = BrandBlue,
-                    onClick = { onNav(Routes.INVENTORY) }
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // --- ADDED SALES HISTORY BUTTON ---
-                CleanActionCard(
-                    title = "Sales History",
-                    description = "View past transactions logs",
-                    icon = Icons.Default.History,
-                    accentColor = BrandBlue,
-                    onClick = { onNav(Routes.HISTORY) }
-                )
-                // ----------------------------------
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                CleanActionCard(
-                    title = "Reports",
-                    description = "Analytics and business insights",
-                    icon = Icons.Default.Info,
-                    accentColor = BrandOrange,
-                    onClick = { onNav(Routes.REPORTS) }
-                )
-            }
-
-            Spacer(modifier = Modifier.weight(1f))
-
-            // Minimal Logout Button
-            TextButton(
-                onClick = onLogout,
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = SystemRed // MATCHED: Using SystemRed for consistency
-                ),
-                shape = RoundedCornerShape(12.dp)
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState())
             ) {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ExitToApp,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Sign Out",
-                    style = MaterialTheme.typography.labelLarge
-                )
+                // Header Section
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(White)
+                        .padding(20.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column {
+                            Text(
+                                "Aneka Baru",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = TextPrimary,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Kasir Management",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = TextSecondary
+                            )
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF0F9FF)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Outlined.TrendingUp,
+                                contentDescription = null,
+                                tint = Color(0xFF0EA5E9),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Main Menu Grid
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CompactMenuCard(
+                            title = "Point of Sale",
+                            subtitle = "New Transaction",
+                            icon = Icons.Default.PointOfSale,
+                            color = Color(0xFF10B981),
+                            onClick = onNavigateToPos,
+                            modifier = Modifier.weight(1f)
+                        )
+                        CompactMenuCard(
+                            title = "Inventory",
+                            subtitle = "Stock Management",
+                            icon = Icons.Default.Inventory,
+                            color = Color(0xFF3B82F6),
+                            onClick = onNavigateToInventory,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        CompactMenuCard(
+                            title = "History",
+                            subtitle = "Past Transactions",
+                            icon = Icons.Default.History,
+                            color = Color(0xFFF59E0B),
+                            onClick = onNavigateToHistory,
+                            modifier = Modifier.weight(1f)
+                        )
+                        CompactMenuCard(
+                            title = "Reports",
+                            subtitle = "Analytics",
+                            icon = Icons.Default.Assessment,
+                            color = Color(0xFFEF4444),
+                            onClick = onNavigateToReport,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
             }
         }
     }
 }
 
 @Composable
-fun CleanActionCard(
+fun CompactMenuCard(
     title: String,
-    description: String,
+    subtitle: String,
     icon: ImageVector,
-    accentColor: Color,
-    onClick: () -> Unit
+    color: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Card(
-        onClick = onClick,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(88.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = White // MATCHED
-        ),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 0.dp,
-            pressedElevation = 2.dp
-        ),
+        modifier = modifier
+            .aspectRatio(1f)
+            .clickable { onClick() },
+        colors = CardDefaults.cardColors(containerColor = White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween
         ) {
-            // Icon Container
             Box(
                 modifier = Modifier
-                    .size(48.dp)
+                    .size(44.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(accentColor.copy(alpha = 0.1f)),
+                    .background(color.copy(alpha = 0.12f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = icon,
                     contentDescription = null,
-                    tint = accentColor,
+                    tint = color,
                     modifier = Modifier.size(24.dp)
                 )
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Text Content
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Column {
                 Text(
-                    text = title,
+                    title,
                     style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary // MATCHED
+                    color = TextPrimary,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 15.sp
                 )
-                Spacer(modifier = Modifier.height(2.dp))
                 Text(
-                    text = description,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TextTertiary // MATCHED
+                    subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    fontSize = 11.sp
                 )
             }
-
-            // Arrow
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = DividerColor, // MATCHED
-                modifier = Modifier.size(24.dp)
-            )
         }
     }
 }

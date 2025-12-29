@@ -32,7 +32,6 @@ fun AppNavigation(
     NavHost(navController = navController, startDestination = Routes.LOGIN) {
 
         composable(Routes.LOGIN) {
-            // FIXED: Used named arguments to fix the type mismatch error
             LoginScreen(
                 viewModel = viewModel,
                 onLoginSuccess = {
@@ -43,16 +42,17 @@ fun AppNavigation(
             )
         }
 
+        // --- PERBAIKAN DI SINI ---
         composable(Routes.DASHBOARD) {
             DashboardScreen(
-                role = viewModel.currentUserRole,
-                onNav = { route -> navController.navigate(route) },
-                onLogout = {
-                    viewModel.logout()
-                    navController.navigate(Routes.LOGIN) { popUpTo(0) { inclusive = true } }
-                }
+                viewModel = viewModel,
+                onNavigateToPos = { navController.navigate(Routes.POS) },
+                onNavigateToInventory = { navController.navigate(Routes.INVENTORY) },
+                onNavigateToHistory = { navController.navigate(Routes.HISTORY) },
+                onNavigateToReport = { navController.navigate(Routes.REPORTS) }
             )
         }
+        // --------------------------
 
         composable(Routes.POS) {
             PosScreen(
@@ -66,7 +66,7 @@ fun AppNavigation(
             CartScreen(viewModel, onBack = { navController.popBackStack() })
         }
 
-        // --- INVENTORY FLOW (Updated for Navigation) ---
+        // --- INVENTORY FLOW ---
 
         // 1. LIST
         composable(Routes.INVENTORY) {
@@ -103,11 +103,11 @@ fun AppNavigation(
             SalesHistoryScreen(
                 viewModel = viewModel,
                 onBack = { navController.popBackStack() },
-                onNavigateToDetail = { navController.navigate(Routes.TRANSACTION_DETAIL) } // Navigasi ke detail
+                onNavigateToDetail = { navController.navigate(Routes.TRANSACTION_DETAIL) }
             )
         }
 
-        // 2. TRANSACTION DETAIL SCREEN (New)
+        // 2. TRANSACTION DETAIL SCREEN
         composable(Routes.TRANSACTION_DETAIL) {
             TransactionDetailScreen(
                 viewModel = viewModel,

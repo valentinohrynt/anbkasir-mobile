@@ -1,11 +1,12 @@
 package com.anekabaru.anbkasir.ui.admin
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.AttachMoney
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Money
 import androidx.compose.material.icons.filled.Receipt
@@ -18,6 +19,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.ui.PosViewModel
+import com.anekabaru.anbkasir.ui.components.PullToRefreshLayout
 import com.anekabaru.anbkasir.ui.theme.*
 import java.util.Calendar
 
@@ -34,6 +36,7 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
 
     val dailySales by viewModel.getSalesTotal(startOfDay, endOfDay).collectAsState(initial = 0.0)
     val txCount by viewModel.getTxCount(startOfDay, endOfDay).collectAsState(initial = 0)
+    val isSyncing by viewModel.isSyncing.collectAsState()
 
     Scaffold(
         topBar = {
@@ -51,61 +54,67 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = BackgroundGray // MATCHED: Blends with background
+                    containerColor = BackgroundGray
                 )
             )
         },
-        containerColor = BackgroundGray // MATCHED: Standard app background
+        containerColor = BackgroundGray
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .padding(20.dp)
-                .fillMaxSize()
+        PullToRefreshLayout(
+            isRefreshing = isSyncing,
+            onRefresh = { viewModel.sync() },
+            modifier = Modifier.padding(padding)
         ) {
-            // Header Section
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.DateRange, null, tint = TextSecondary, modifier = Modifier.size(20.dp))
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    "TODAY'S SUMMARY",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = TextSecondary,
-                    letterSpacing = 1.sp
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(rememberScrollState()) // Penting agar bisa di-scroll saat di-pull
+                    .padding(20.dp)
+            ) {
+                // Header Section
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Default.DateRange, null, tint = TextSecondary, modifier = Modifier.size(20.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        "TODAY'S SUMMARY",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = TextSecondary,
+                        letterSpacing = 1.sp
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // 1. Total Sales Card (Hero Card)
+                StatCard(
+                    title = "Total Revenue",
+                    value = "Rp${dailySales ?: 0.0}",
+                    icon = Icons.Default.Money,
+                    color = BrandGreen,
+                    isHero = true
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 2. Transaction Count
+                StatCard(
+                    title = "Transactions",
+                    value = "$txCount Orders",
+                    icon = Icons.Default.Receipt,
+                    color = BrandBlue
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 3. Gross Profit
+                val estimatedProfit = (dailySales ?: 0.0) * 0.2
+                StatCard(
+                    title = "Est. Gross Profit",
+                    value = "Rp${"%.2f".format(estimatedProfit)}",
+                    icon = Icons.AutoMirrored.Filled.TrendingUp,
+                    color = BrandOrange
                 )
             }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // 1. Total Sales Card (Hero Card)
-            StatCard(
-                title = "Total Revenue",
-                value = "Rp${dailySales ?: 0.0}",
-                icon = Icons.Default.Money,
-                color = BrandGreen,
-                isHero = true
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 2. Transaction Count
-            StatCard(
-                title = "Transactions",
-                value = "$txCount Orders",
-                icon = Icons.Default.Receipt,
-                color = BrandBlue
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // 3. Gross Profit
-            val estimatedProfit = (dailySales ?: 0.0) * 0.2
-            StatCard(
-                title = "Est. Gross Profit",
-                value = "Rp${"%.2f".format(estimatedProfit)}",
-                icon = Icons.AutoMirrored.Filled.TrendingUp,
-                color = BrandOrange
-            )
         }
     }
 }
@@ -123,7 +132,7 @@ fun StatCard(
             .fillMaxWidth()
             .height(if (isHero) 120.dp else 100.dp),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = White), // MATCHED: White Cards
+        colors = CardDefaults.cardColors(containerColor = White),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Row(
@@ -153,7 +162,7 @@ fun StatCard(
                 Text(
                     text = title,
                     style = MaterialTheme.typography.labelLarge,
-                    color = TextSecondary // MATCHED
+                    color = TextSecondary
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -162,7 +171,7 @@ fun StatCard(
                         MaterialTheme.typography.headlineLarge.copy(fontSize = 32.sp)
                     else
                         MaterialTheme.typography.headlineLarge.copy(fontSize = 24.sp),
-                    color = TextPrimary // MATCHED
+                    color = TextPrimary
                 )
             }
         }

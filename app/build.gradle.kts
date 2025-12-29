@@ -74,6 +74,7 @@ dependencies {
     // This one usually follows a different versioning, but ensure it is compatible
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     implementation("androidx.compose.material:material-icons-extended")
+    implementation(platform("androidx.compose:compose-bom:2024.06.00"))
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

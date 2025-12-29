@@ -25,7 +25,6 @@ class PosViewModel @Inject constructor(
     private val repository: PosRepository
 ) : ViewModel() {
 
-    // --- AUTH ---
     var currentUserRole by mutableStateOf("Cashier")
         private set
     var currentUserName by mutableStateOf("Staff")
@@ -52,13 +51,14 @@ class PosViewModel @Inject constructor(
         currentUserName = "Staff"
     }
 
-    // --- DATA ---
     val products = repository.products.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
-    // NEW: Sales History
     val salesHistory = repository.salesHistory.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private val _cart = MutableStateFlow<List<CartItem>>(emptyList())
     val cart = _cart.asStateFlow()
+
+    private val _isSyncing = MutableStateFlow(false)
+    val isSyncing = _isSyncing.asStateFlow()
 
     val grandTotal = _cart.map { it.sumOf { item -> item.total } }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
@@ -66,7 +66,6 @@ class PosViewModel @Inject constructor(
     private val _receiptText = MutableStateFlow<String?>(null)
     val receiptText = _receiptText.asStateFlow()
 
-    // --- POS ACTIONS ---
     fun addToCart(p: ProductEntity) {
         val list = _cart.value.toMutableList()
         val idx = list.indexOfFirst { it.product.id == p.id }
@@ -75,7 +74,6 @@ class PosViewModel @Inject constructor(
         _cart.value = list
     }
 
-    // NEW: Edit Cart Quantity (+/-)
     fun updateCartQuantity(productId: String, delta: Int) {
         val list = _cart.value.toMutableList()
         val idx = list.indexOfFirst { it.product.id == productId }
@@ -83,7 +81,7 @@ class PosViewModel @Inject constructor(
             val existing = list[idx]
             val newQty = existing.quantity + delta
             if (newQty <= 0) {
-                list.removeAt(idx) // Remove from cart if 0
+                list.removeAt(idx)
             } else {
                 list[idx] = existing.copy(quantity = newQty)
             }
@@ -101,14 +99,12 @@ class PosViewModel @Inject constructor(
 
     fun closeReceipt() { _receiptText.value = null }
 
-    // --- INVENTORY ACTIONS ---
     fun addProduct(name: String, buy: Double, sell: Double, wholesale: Double, thresh: Int, stock: Int, cat: String, bar: String) {
         viewModelScope.launch {
             repository.saveProduct(ProductEntity(name=name, buyPrice=buy, sellPrice=sell, wholesalePrice=wholesale, wholesaleThreshold=thresh, stock=stock, category=cat, barcode=bar))
         }
     }
 
-    // NEW: Update Product
     fun updateProduct(id: String, name: String, buy: Double, sell: Double, wholesale: Double, thresh: Int, stock: Int, cat: String, bar: String) {
         viewModelScope.launch {
             val p = ProductEntity(id=id, name=name, buyPrice=buy, sellPrice=sell, wholesalePrice=wholesale, wholesaleThreshold=thresh, stock=stock, category=cat, barcode=bar)
@@ -116,16 +112,25 @@ class PosViewModel @Inject constructor(
         }
     }
 
-    // NEW: Delete Product
     fun deleteProduct(id: String) {
         viewModelScope.launch {
             repository.deleteProduct(id)
         }
     }
 
-    fun sync() = viewModelScope.launch { repository.syncData() }
+    fun sync() {
+        viewModelScope.launch {
+            _isSyncing.value = true
+            try {
+                repository.syncData()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isSyncing.value = false
+            }
+        }
+    }
 
-    // --- REPORTING WRAPPERS ---
     fun getSalesTotal(start: Long, end: Long) = repository.getSalesTotal(start, end)
     fun getTxCount(start: Long, end: Long) = repository.getTxCount(start, end)
 
@@ -142,7 +147,6 @@ class PosViewModel @Inject constructor(
     var selectedTransactionItems by mutableStateOf<List<TransactionItemEntity>>(emptyList())
         private set
 
-    // Tambahkan fungsi ini
     fun openTransactionDetail(tx: TransactionEntity) {
         selectedTransaction = tx
         viewModelScope.launch {
