@@ -157,6 +157,11 @@ class PosRepository @Inject constructor(
             val serverSups = api.getSuppliers()
             db.posDao().insertSuppliers(serverSups.map { it.copy(isSynced = true) })
 
+            val serverTransactions = api.getSalesHistory()
+            if (serverTransactions.isNotEmpty()) {
+                db.posDao().insertTransactions(serverTransactions.map { it.copy(isSynced = true) })
+            }
+
         } catch (e: Exception) {
             e.printStackTrace()
         }

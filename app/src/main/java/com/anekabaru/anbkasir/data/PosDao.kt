@@ -84,4 +84,7 @@ interface PosDao {
 
     @Query("UPDATE purchases SET isSynced = 1 WHERE id IN (:ids)")
     suspend fun markPurchasesSynced(ids: List<String>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertTransactions(transactions: List<TransactionEntity>)
 }
