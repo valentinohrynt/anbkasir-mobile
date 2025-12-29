@@ -3,9 +3,11 @@ package com.anekabaru.anbkasir.ui.pos
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -40,13 +42,25 @@ fun PosScreen(
     val cart by viewModel.cart.collectAsState()
     val total by viewModel.grandTotal.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
-    var searchQuery by remember { mutableStateOf("") }
 
-    val filteredProducts = remember(products, searchQuery) {
-        if (searchQuery.isBlank()) products else products.filter {
-            it.name.contains(searchQuery, ignoreCase = true) ||
-                    it.category.contains(searchQuery, ignoreCase = true) ||
-                    (it.barcode ?: "").contains(searchQuery)
+    var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
+
+    // Derive unique categories
+    val categories = remember(products) {
+        products.map { it.category }.distinct().sorted()
+    }
+
+    // Filter Logic: Search + Category
+    val filteredProducts = remember(products, searchQuery, selectedCategory) {
+        products.filter { product ->
+            val matchesSearch = if (searchQuery.isBlank()) true else {
+                product.name.contains(searchQuery, ignoreCase = true) ||
+                        product.category.contains(searchQuery, ignoreCase = true) ||
+                        (product.barcode ?: "").contains(searchQuery)
+            }
+            val matchesCategory = selectedCategory == null || product.category == selectedCategory
+            matchesSearch && matchesCategory
         }
     }
 
@@ -100,76 +114,104 @@ fun PosScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(White)
-                        .padding(20.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    // Top Row & Search
+                    Column(
+                        modifier = Modifier.padding(top = 20.dp, start = 20.dp, end = 20.dp, bottom = 12.dp)
                     ) {
-                        // Left: Back Button & Title
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(onClick = onBack) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    "Back",
-                                    tint = TextPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                            // Left: Back Button & Title
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                IconButton(onClick = onBack) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        "Back",
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                Column {
+                                    Text(
+                                        "Point of Sale",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = TextPrimary
+                                    )
+                                    Text(
+                                        "${filteredProducts.size} Products", // Show count dynamically
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextSecondary
+                                    )
+                                }
                             }
 
-                            Column {
-                                Text(
-                                    "Point of Sale",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    "Product Catalog",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
+                            // Right: Decorative Store Icon
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(SurfaceGreen),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Default.Store,
+                                    contentDescription = null,
+                                    tint = BrandGreen,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
 
-                        // Right: Decorative Store Icon (Replaces Refresh Button)
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(SurfaceGreen), // POS Theme Color
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Store, // Decorative Icon
-                                contentDescription = null,
-                                tint = BrandGreen,
-                                modifier = Modifier.size(20.dp)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Search Bar
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Search products...", style = MaterialTheme.typography.bodyMedium, color = TextTertiary) },
+                            leadingIcon = { Icon(Icons.Default.Search, null, tint = TextTertiary, modifier = Modifier.size(20.dp)) },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = BrandBlue,
+                                unfocusedBorderColor = BorderColor,
+                                focusedContainerColor = BackgroundApp,
+                                unfocusedContainerColor = BackgroundApp
+                            ),
+                            singleLine = true
+                        )
+                    }
+
+                    // Category Filter Row
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item {
+                            CategoryChipPOS(
+                                label = "All",
+                                isSelected = selectedCategory == null,
+                                onClick = { selectedCategory = null }
+                            )
+                        }
+                        items(categories) { category ->
+                            CategoryChipPOS(
+                                label = category,
+                                isSelected = selectedCategory == category,
+                                onClick = { selectedCategory = category }
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    // Search Bar
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Search products...", style = MaterialTheme.typography.bodyMedium, color = TextTertiary) },
-                        leadingIcon = { Icon(Icons.Default.Search, null, tint = TextTertiary, modifier = Modifier.size(20.dp)) },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = BrandBlue,
-                            unfocusedBorderColor = BorderColor,
-                            focusedContainerColor = BackgroundApp,
-                            unfocusedContainerColor = BackgroundApp
-                        ),
-                        singleLine = true
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -206,6 +248,33 @@ fun PosScreen(
             }
         }
     }
+}
+
+// Reusable Chip for POS (Same style as Inventory but locally defined to avoid dependency issues if needed)
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CategoryChipPOS(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    FilterChip(
+        selected = isSelected,
+        onClick = onClick,
+        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = BrandGreen, // Use Green for POS context
+            selectedLabelColor = White,
+            containerColor = BackgroundApp,
+            labelColor = TextSecondary
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = true,
+            selected = isSelected,
+            borderColor = if (isSelected) BrandGreen else BorderColor
+        ),
+        shape = RoundedCornerShape(20.dp)
+    )
 }
 
 @Composable

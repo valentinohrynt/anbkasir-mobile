@@ -55,9 +55,26 @@ class PosRepository @Inject constructor(
         safeSync()
     }
 
-    suspend fun saveTransaction(total: Double, cashier: String, items: List<com.anekabaru.anbkasir.ui.CartItem>) {
+    // MODIFIED: saveTransaction to include payment details
+    suspend fun saveTransaction(
+        total: Double,
+        cashier: String,
+        items: List<com.anekabaru.anbkasir.ui.CartItem>,
+        paymentMethod: String,
+        amountPaid: Double,
+        changeAmount: Double
+    ) {
         val txId = UUID.randomUUID().toString()
-        val tx = TransactionEntity(id = txId, totalAmount = total, cashierName = cashier, isSynced = false)
+        val tx = TransactionEntity(
+            id = txId,
+            totalAmount = total,
+            cashierName = cashier,
+            date = System.currentTimeMillis(),
+            paymentMethod = paymentMethod,
+            amountPaid = amountPaid,
+            changeAmount = changeAmount,
+            isSynced = false
+        )
         db.posDao().insertTransaction(tx)
 
         val txItems = items.map {
@@ -103,9 +120,18 @@ class PosRepository @Inject constructor(
             if (unsyncedTx.isNotEmpty()) {
                 val payload = unsyncedTx.map { tx ->
                     val items = db.posDao().getItemsForTransaction(tx.id)
-                    TransactionSyncPayload(tx.id, tx.totalAmount, tx.date, items.map {
-                        TransactionItemSyncPayload(it.id, it.productId, it.productName, it.quantity, it.priceSnapshot, it.subtotal)
-                    })
+                    TransactionSyncPayload(
+                        id = tx.id,
+                        totalAmount = tx.totalAmount,
+                        date = tx.date,
+                        cashierName = tx.cashierName,
+                        paymentMethod = tx.paymentMethod,
+                        amountPaid = tx.amountPaid,
+                        changeAmount = tx.changeAmount,
+                        items = items.map {
+                            TransactionItemSyncPayload(it.id, it.productId, it.productName, it.quantity, it.priceSnapshot, it.subtotal)
+                        }
+                    )
                 }
                 val res = api.pushTransactions(payload)
                 if (res.status == "success") db.posDao().markTransactionsSynced(res.syncedIds)

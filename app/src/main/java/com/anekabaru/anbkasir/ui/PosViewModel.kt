@@ -89,14 +89,6 @@ class PosViewModel @Inject constructor(
         }
     }
 
-    fun checkout() {
-        viewModelScope.launch {
-            repository.saveTransaction(grandTotal.value, currentUserName, _cart.value)
-            _receiptText.value = "PAYMENT SUCCESS\nTotal: ${grandTotal.value}"
-            _cart.value = emptyList()
-        }
-    }
-
     fun closeReceipt() { _receiptText.value = null }
 
     fun addProduct(name: String, buy: Double, sell: Double, wholesale: Double, thresh: Int, stock: Int, cat: String, bar: String) {
@@ -151,6 +143,124 @@ class PosViewModel @Inject constructor(
         selectedTransaction = tx
         viewModelScope.launch {
             selectedTransactionItems = repository.getTransactionItems(tx.id)
+        }
+    }
+
+    var paymentMethod by mutableStateOf("CASH") // Default
+    var amountPaidInput by mutableStateOf("")   // String for TextField
+
+    // Auto-calculate Change
+    val changeAmount: Double
+        get() {
+            val paid = amountPaidInput.toDoubleOrNull() ?: 0.0
+            val total = grandTotal.value
+            return if (paid >= total) paid - total else 0.0
+        }
+
+    fun setPaymentType(type: String) {
+        paymentMethod = type
+        // Convenience: If QRIS/Transfer, auto-fill exact amount
+        if (type != "CASH") {
+            amountPaidInput = grandTotal.value.toInt().toString()
+        } else {
+            amountPaidInput = "" // Reset for cash
+        }
+    }
+
+    // Improved Receipt Generator
+    private fun generateReceipt(
+        txId: String,
+        date: Long,
+        cashier: String,
+        items: List<CartItem>,
+        total: Double,
+        payMethod: String,
+        paid: Double,
+        change: Double
+    ): String {
+        val sb = StringBuilder()
+        val dateStr = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(java.util.Date(date))
+
+        // Helper for centering text (assuming 32 chars width for 58mm printer)
+        fun center(text: String): String {
+            val padding = (32 - text.length) / 2
+            return " ".repeat(padding.coerceAtLeast(0)) + text + "\n"
+        }
+
+        fun line() = "--------------------------------\n"
+
+        sb.append(center("TOKO ANEKA BARU"))
+        sb.append(center("Jl. Raya No. 123"))
+        sb.append(center("Telp: 0812-3456-7890"))
+        sb.append(line())
+        sb.append("No: ${txId.take(8)}\n")
+        sb.append("Date: $dateStr\n")
+        sb.append("Cashier: $cashier\n")
+        sb.append(line())
+
+        // Items
+        items.forEach { item ->
+            val totalItem = item.activePrice * item.quantity
+            // Name Line
+            sb.append("${item.product.name}\n")
+            // Qty x Price = Total Line
+            val qtyPrice = "${item.quantity} x ${"%.0f".format(item.activePrice)}"
+            val subTotal = "%.0f".format(totalItem)
+
+            // Align Right
+            val spaces = 32 - qtyPrice.length - subTotal.length
+            sb.append(qtyPrice + " ".repeat(spaces.coerceAtLeast(0)) + subTotal + "\n")
+        }
+
+        sb.append(line())
+
+        // Totals
+        fun row(label: String, value: Double): String {
+            val vStr = "%.0f".format(value)
+            val sp = 32 - label.length - vStr.length
+            return label + " ".repeat(sp.coerceAtLeast(0)) + vStr + "\n"
+        }
+
+        sb.append(row("TOTAL", total))
+        sb.append(row("PAYMENT ($payMethod)", paid))
+        sb.append(row("CHANGE", change))
+
+        sb.append(line())
+        sb.append(center("Thank You!"))
+        sb.append(center("Please Come Again"))
+        sb.append("\n\n") // Feed lines
+
+        return sb.toString()
+    }
+
+    fun checkout() {
+        val paid = amountPaidInput.toDoubleOrNull() ?: 0.0
+        val total = grandTotal.value
+
+        // Validation: Must pay enough
+        if (paid < total) return
+
+        val currentItems = _cart.value // Snapshot items
+        val txId = java.util.UUID.randomUUID().toString()
+        val now = System.currentTimeMillis()
+
+        viewModelScope.launch {
+            repository.saveTransaction(
+                total = total,
+                cashier = currentUserName,
+                items = currentItems,
+                paymentMethod = paymentMethod,
+                amountPaid = paid,
+                changeAmount = changeAmount
+            )
+
+            // GENERATE PRETTY RECEIPT
+            val receipt = generateReceipt(txId, now, currentUserName, currentItems, total, paymentMethod, paid, changeAmount)
+            _receiptText.value = receipt
+
+            _cart.value = emptyList()
+            amountPaidInput = ""
+            paymentMethod = "CASH"
         }
     }
 }

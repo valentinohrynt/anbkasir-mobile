@@ -9,6 +9,10 @@ data class TransactionSyncPayload(
     val id: String,
     val totalAmount: Double,
     val date: Long,
+    val cashierName: String,
+    val paymentMethod: String,
+    val amountPaid: Double,
+    val changeAmount: Double,
     val items: List<TransactionItemSyncPayload>
 )
 

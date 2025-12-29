@@ -21,10 +21,13 @@ data class ProductEntity(
 
 @Entity(tableName = "transactions")
 data class TransactionEntity(
-    @PrimaryKey val id: String = UUID.randomUUID().toString(),
+    @PrimaryKey val id: String,
     val totalAmount: Double,
-    val date: Long = System.currentTimeMillis(),
     val cashierName: String,
+    val date: Long,
+    val paymentMethod: String = "CASH", // "CASH", "TRANSFER", "QRIS"
+    val amountPaid: Double = 0.0,
+    val changeAmount: Double = 0.0,
     val isSynced: Boolean = false
 )
 

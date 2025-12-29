@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -37,16 +39,24 @@ fun InventoryScreen(
     val isSyncing by viewModel.isSyncing.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
+    var selectedCategory by remember { mutableStateOf<String?>(null) }
 
-    val filteredProducts = remember(products, searchQuery) {
-        if (searchQuery.isBlank()) {
-            products
-        } else {
-            products.filter {
-                it.name.contains(searchQuery, ignoreCase = true) ||
-                        it.category.contains(searchQuery, ignoreCase = true) ||
-                        (it.barcode ?: "").contains(searchQuery)
+    // Derive unique sorted categories from the product list
+    val categories = remember(products) {
+        products.map { it.category }.distinct().sorted()
+    }
+
+    // Filter logic: Search Query AND Category
+    val filteredProducts = remember(products, searchQuery, selectedCategory) {
+        products.filter { product ->
+            val matchesSearch = if (searchQuery.isBlank()) true else {
+                product.name.contains(searchQuery, ignoreCase = true) ||
+                        product.category.contains(searchQuery, ignoreCase = true) ||
+                        (product.barcode ?: "").contains(searchQuery)
             }
+            val matchesCategory = selectedCategory == null || product.category == selectedCategory
+
+            matchesSearch && matchesCategory
         }
     }
 
@@ -57,14 +67,14 @@ fun InventoryScreen(
                     viewModel.selectProduct(null)
                     onNavigateToForm()
                 },
-                containerColor = BrandBlue, // Updated to Theme
+                containerColor = BrandBlue,
                 contentColor = White,
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Icon(Icons.Default.Add, "Add Product")
             }
         },
-        containerColor = BackgroundApp // Updated to Theme
+        containerColor = BackgroundApp
     ) { padding ->
         PullToRefreshLayout(
             isRefreshing = isSyncing,
@@ -74,98 +84,124 @@ fun InventoryScreen(
             Column(
                 modifier = Modifier.fillMaxSize()
             ) {
-                // Header Section
+                // Header Section (Title + Search + Filter)
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(White)
-                        .padding(20.dp)
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                    // Top Row & Search Bar
+                    Column(
+                        modifier = Modifier.padding(top = 20.dp, start = 20.dp, end = 20.dp, bottom = 12.dp)
                     ) {
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            IconButton(
-                                onClick = onBack,
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    "Back",
-                                    tint = TextPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
+                                IconButton(onClick = onBack) {
+                                    Icon(
+                                        Icons.AutoMirrored.Filled.ArrowBack,
+                                        "Back",
+                                        tint = TextPrimary,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+
+                                Column {
+                                    Text(
+                                        "Inventory",
+                                        style = MaterialTheme.typography.titleLarge,
+                                        color = TextPrimary
+                                    )
+                                    Text(
+                                        "${filteredProducts.size} Products",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = TextSecondary
+                                    )
+                                }
                             }
 
-                            Column {
-                                Text(
-                                    "Inventory",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    "${products.size} Products",
-                                    style = MaterialTheme.typography.bodySmall, // Using bodySmall as defined in Type.kt or default
-                                    color = TextSecondary
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(SurfaceBlue),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Inventory2,
+                                    contentDescription = null,
+                                    tint = BrandBlue,
+                                    modifier = Modifier.size(20.dp)
                                 )
                             }
                         }
 
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(SurfaceBlue), // Updated to Theme
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Outlined.Inventory2,
-                                contentDescription = null,
-                                tint = BrandBlue, // Updated to Theme
-                                modifier = Modifier.size(20.dp)
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = {
+                                Text(
+                                    "Search by name, category, barcode...",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = TextTertiary
+                                )
+                            },
+                            leadingIcon = {
+                                Icon(
+                                    Icons.Default.Search,
+                                    null,
+                                    tint = TextTertiary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = BrandBlue,
+                                unfocusedBorderColor = BorderColor,
+                                focusedContainerColor = BackgroundApp,
+                                unfocusedContainerColor = BackgroundApp
+                            ),
+                            singleLine = true
+                        )
+                    }
+
+                    // Category Filter Row
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        item {
+                            CategoryChip(
+                                label = "All",
+                                isSelected = selectedCategory == null,
+                                onClick = { selectedCategory = null }
+                            )
+                        }
+                        items(categories) { category ->
+                            CategoryChip(
+                                label = category,
+                                isSelected = selectedCategory == category,
+                                onClick = { selectedCategory = category }
                             )
                         }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    // Search Bar
-                    OutlinedTextField(
-                        value = searchQuery,
-                        onValueChange = { searchQuery = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = {
-                            Text(
-                                "Search products...",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = TextTertiary
-                            )
-                        },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Search,
-                                null,
-                                tint = TextTertiary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                        },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = BrandBlue,
-                            unfocusedBorderColor = BorderColor,
-                            focusedContainerColor = BackgroundApp,
-                            unfocusedContainerColor = BackgroundApp
-                        ),
-                        singleLine = true
-                    )
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
 
+                // Products List
                 if (filteredProducts.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(
@@ -219,6 +255,32 @@ fun InventoryScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun CategoryChip(
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
+    FilterChip(
+        selected = isSelected,
+        onClick = onClick,
+        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
+        colors = FilterChipDefaults.filterChipColors(
+            selectedContainerColor = BrandBlue,
+            selectedLabelColor = White,
+            containerColor = BackgroundApp,
+            labelColor = TextSecondary
+        ),
+        border = FilterChipDefaults.filterChipBorder(
+            enabled = true,
+            selected = isSelected,
+            borderColor = if (isSelected) BrandBlue else BorderColor
+        ),
+        shape = RoundedCornerShape(20.dp)
+    )
+}
+
 @Composable
 fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
     Card(
@@ -239,7 +301,7 @@ fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     product.name,
-                    style = MaterialTheme.typography.titleSmall, // 15.sp defined in Type.kt
+                    style = MaterialTheme.typography.titleSmall,
                     color = TextPrimary,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
@@ -250,13 +312,13 @@ fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Surface(
-                        color = SurfaceBlue, // Updated to Theme
+                        color = SurfaceBlue,
                         shape = RoundedCornerShape(6.dp)
                     ) {
                         Text(
                             product.category,
                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp),
-                            style = MaterialTheme.typography.labelSmall, // 11.sp defined in Type.kt
+                            style = MaterialTheme.typography.labelSmall,
                             color = BrandBlue
                         )
                     }
@@ -280,7 +342,7 @@ fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
                 Text(
                     "${product.stock}",
                     style = MaterialTheme.typography.titleMedium,
-                    color = if(product.stock < 10) SystemRed else TextPrimary, // Updated to Theme
+                    color = if(product.stock < 10) SystemRed else TextPrimary,
                     fontWeight = FontWeight.Bold
                 )
             }

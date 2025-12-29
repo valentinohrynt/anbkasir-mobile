@@ -11,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.style.TextAlign
@@ -29,7 +30,7 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(BackgroundApp), // Updated to FAFAFA
+            .background(BackgroundApp),
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -37,22 +38,24 @@ fun LoginScreen(
                 .fillMaxWidth(0.85f)
                 .wrapContentHeight(),
             colors = CardDefaults.cardColors(containerColor = White),
-            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), // Consistent elevation
+            elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
             shape = RoundedCornerShape(24.dp)
         ) {
             Column(
                 modifier = Modifier.padding(32.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
+                // FIXED: Reverted to using a standard Vector Icon to prevent crashes
+                // caused by invalid/unsupported mipmap resources.
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = SurfaceGreen, // Updated
+                    color = SurfaceGreen,
                     modifier = Modifier.size(80.dp)
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Store,
-                            contentDescription = null,
+                            contentDescription = "App Logo",
                             tint = BrandGreen,
                             modifier = Modifier.size(40.dp)
                         )
@@ -93,7 +96,7 @@ fun LoginScreen(
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = BrandGreen,
-                        unfocusedBorderColor = BorderColor, // Updated
+                        unfocusedBorderColor = BorderColor,
                         focusedLabelColor = BrandGreen,
                         cursorColor = BrandGreen,
                         focusedContainerColor = White,

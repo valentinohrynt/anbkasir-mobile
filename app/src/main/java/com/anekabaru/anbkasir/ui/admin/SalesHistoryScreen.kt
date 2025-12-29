@@ -9,8 +9,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CalendarToday
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -18,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.ui.PosViewModel
 import com.anekabaru.anbkasir.ui.components.PullToRefreshLayout
 import com.anekabaru.anbkasir.ui.theme.*
@@ -31,9 +33,30 @@ fun SalesHistoryScreen(
     viewModel: PosViewModel,
     onBack: () -> Unit,
     onNavigateToDetail: () -> Unit
-){
+) {
     val history by viewModel.salesHistory.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
+
+    // Date Filter State
+    var showDatePicker by remember { mutableStateOf(false) }
+    var selectedDateRange by remember { mutableStateOf<Pair<Long?, Long?>>(null to null) } // Start to End
+
+    // Filter Logic
+    val filteredHistory = remember(history, selectedDateRange) {
+        val (start, end) = selectedDateRange
+        if (start == null || end == null) {
+            history
+        } else {
+            // Normalize to start of day and end of day
+            val startDate = Date(start)
+            val endDate = Date(end + 86400000 - 1) // Add 24h - 1ms to include the full end day
+
+            history.filter { tx ->
+                val txDate = Date(tx.date)
+                txDate.after(startDate) && txDate.before(endDate)
+            }
+        }
+    }
 
     // Add semantic color for History (Orange) matching Dashboard
     val SurfaceOrange = Color(0xFFFFF7ED)
@@ -81,32 +104,68 @@ fun SalesHistoryScreen(
                                     color = TextPrimary
                                 )
                                 Text(
-                                    "${history.size} Transactions",
+                                    "${filteredHistory.size} Transactions",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = TextSecondary
                                 )
                             }
                         }
 
-                        // Right: Decorative Icon (The feature you requested)
+                        // Right: Decorative Icon
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(SurfaceOrange), // Orange Background
+                                .background(SurfaceOrange),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Default.History,
                                 contentDescription = null,
-                                tint = BrandOrange, // Orange Icon
+                                tint = BrandOrange,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
                     }
 
-                    // Optional: Search/Filter for History could go here
-                    // (omitted for now to keep it clean, but space is ready)
+                    Spacer(modifier = Modifier.height(16.dp))
+
+                    // --- DATE FILTER BUTTON ---
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedButton(
+                            onClick = { showDatePicker = true },
+                            shape = RoundedCornerShape(12.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.CalendarToday, null, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            val (start, end) = selectedDateRange
+                            Text(
+                                if (start != null && end != null) {
+                                    val f = SimpleDateFormat("dd MMM", Locale.getDefault())
+                                    "${f.format(Date(start))} - ${f.format(Date(end))}"
+                                } else "Filter by Date Range",
+                                style = MaterialTheme.typography.labelMedium
+                            )
+                        }
+
+                        // Clear Filter Button (Visible if filtered)
+                        if (selectedDateRange.first != null) {
+                            Spacer(modifier = Modifier.width(8.dp))
+                            IconButton(
+                                onClick = { selectedDateRange = null to null },
+                                modifier = Modifier.background(BackgroundApp, CircleShape)
+                            ) {
+                                Icon(Icons.Default.Close, "Clear", tint = TextSecondary)
+                            }
+                        }
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(8.dp))
@@ -119,7 +178,7 @@ fun SalesHistoryScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                     contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
                 ) {
-                    if (history.isEmpty()) {
+                    if (filteredHistory.isEmpty()) {
                         item {
                             Box(
                                 modifier = Modifier
@@ -135,7 +194,7 @@ fun SalesHistoryScreen(
                             }
                         }
                     } else {
-                        items(history) { tx ->
+                        items(filteredHistory) { tx ->
                             Card(
                                 modifier = Modifier.clickable {
                                     viewModel.openTransactionDetail(tx)
@@ -160,11 +219,20 @@ fun SalesHistoryScreen(
                                         )
                                     },
                                     trailingContent = {
-                                        Text(
-                                            "Rp${tx.totalAmount}",
-                                            style = MaterialTheme.typography.titleSmall,
-                                            color = BrandGreen
-                                        )
+                                        Column(horizontalAlignment = Alignment.End) {
+                                            Text(
+                                                "Rp${"%.2f".format(tx.totalAmount)}",
+                                                style = MaterialTheme.typography.titleSmall,
+                                                color = BrandGreen
+                                            )
+                                            // Optional: Show Payment Method
+                                            Text(
+                                                tx.paymentMethod,
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = TextTertiary,
+                                                fontSize = 10.sp
+                                            )
+                                        }
                                     },
                                     colors = ListItemDefaults.colors(containerColor = White)
                                 )
@@ -173,6 +241,36 @@ fun SalesHistoryScreen(
                     }
                 }
             }
+        }
+    }
+
+    if (showDatePicker) {
+        val datePickerState = rememberDateRangePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val start = datePickerState.selectedStartDateMillis
+                        val end = datePickerState.selectedEndDateMillis
+                        if (start != null && end != null) {
+                            selectedDateRange = start to end
+                        }
+                        showDatePicker = false
+                    }
+                ) { Text("Apply", color = BrandBlue) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel", color = TextSecondary) }
+            }
+        ) {
+            DateRangePicker(state = datePickerState, title = {
+                Text(
+                    "Select dates",
+                    modifier = Modifier.padding(16.dp),
+                    style = MaterialTheme.typography.titleMedium
+                )
+            })
         }
     }
 }
