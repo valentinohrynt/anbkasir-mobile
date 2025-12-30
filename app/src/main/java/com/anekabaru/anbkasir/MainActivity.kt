@@ -20,10 +20,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             AnbKasirTheme {
-                // Gunakan hiltViewModel() untuk mendapatkan instance yang dikelola Hilt
                 val viewModel: PosViewModel = hiltViewModel()
 
-                // Panggil sync saat aplikasi pertama kali dibuka
                 LaunchedEffect(Unit) {
                     viewModel.sync()
                 }
@@ -32,7 +30,6 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    // Teruskan viewModel yang sama ke navigasi
                     AppNavigation(viewModel = viewModel)
                 }
             }
