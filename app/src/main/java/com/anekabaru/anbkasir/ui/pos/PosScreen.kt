@@ -58,6 +58,13 @@ fun PosScreen(
 
     // [BARU] State Scanner
     var showScanner by remember { mutableStateOf(false) }
+    // [BARU] Flag untuk mencegah double processing saat scan
+    var isProcessingScan by remember { mutableStateOf(false) }
+
+    // Reset flag saat scanner dibuka kembali
+    LaunchedEffect(showScanner) {
+        if (showScanner) isProcessingScan = false
+    }
 
     // [BARU] Snackbar State
     val snackbarHostState = remember { SnackbarHostState() }
@@ -78,6 +85,10 @@ fun PosScreen(
     }
 
     fun onBarcodeDetected(code: String) {
+        // [PERBAIKAN] Cek apakah sedang memproses? Jika ya, hentikan agar tidak double add.
+        if (isProcessingScan) return
+        isProcessingScan = true 
+
         val product = products.find { it.barcode == code }
         if (product != null) {
             viewModel.addToCart(product)
@@ -247,7 +258,6 @@ fun PosScreen(
     }
 }
 
-// ... (CategoryChipPOS & ProductCardSimple tetap sama seperti kode Anda sebelumnya)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CategoryChipPOS(label: String, isSelected: Boolean, onClick: () -> Unit) {
