@@ -62,7 +62,8 @@ class PosRepository @Inject constructor(
         items: List<com.anekabaru.anbkasir.ui.CartItem>,
         paymentMethod: String,
         amountPaid: Double,
-        changeAmount: Double
+        changeAmount: Double,
+        discount: Double
     ) {
         val txId = UUID.randomUUID().toString()
         val tx = TransactionEntity(
@@ -73,6 +74,7 @@ class PosRepository @Inject constructor(
             paymentMethod = paymentMethod,
             amountPaid = amountPaid,
             changeAmount = changeAmount,
+            discount = discount,
             isSynced = false
         )
         db.posDao().insertTransaction(tx)

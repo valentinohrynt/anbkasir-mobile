@@ -3,12 +3,16 @@ package com.anekabaru.anbkasir.ui
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.anekabaru.anbkasir.data.*
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import javax.inject.Inject
 
 data class CartItem(
@@ -60,8 +64,19 @@ class PosViewModel @Inject constructor(
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing = _isSyncing.asStateFlow()
 
-    val grandTotal = _cart.map { it.sumOf { item -> item.total } }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
+    // --- [BARU] STATE DISKON ---
+    var discountAmount by mutableStateOf(0.0)
+        private set
+
+    fun setDiscount(amount: Double) {
+        discountAmount = amount
+    }
+
+    // [MODIFIKASI] Grand Total dikurangi diskon
+    val grandTotal = _cart.combine(snapshotFlow { discountAmount }) { cartItems, discount ->
+        val subtotal = cartItems.sumOf { it.total }
+        (subtotal - discount).coerceAtLeast(0.0)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), 0.0)
 
     private val _receiptText = MutableStateFlow<String?>(null)
     val receiptText = _receiptText.asStateFlow()
@@ -91,6 +106,7 @@ class PosViewModel @Inject constructor(
 
     fun closeReceipt() { _receiptText.value = null }
 
+    // ... (Fungsi CRUD Product & Sync sama seperti sebelumnya) ...
     fun addProduct(name: String, buy: Double, sell: Double, wholesale: Double, thresh: Int, stock: Int, cat: String, bar: String) {
         viewModelScope.launch {
             repository.saveProduct(ProductEntity(name=name, buyPrice=buy, sellPrice=sell, wholesalePrice=wholesale, wholesaleThreshold=thresh, stock=stock, category=cat, barcode=bar))
@@ -128,14 +144,10 @@ class PosViewModel @Inject constructor(
 
     var selectedProduct by mutableStateOf<ProductEntity?>(null)
         private set
-
-    fun selectProduct(product: ProductEntity?) {
-        selectedProduct = product
-    }
+    fun selectProduct(product: ProductEntity?) { selectedProduct = product }
 
     var selectedTransaction by mutableStateOf<TransactionEntity?>(null)
         private set
-
     var selectedTransactionItems by mutableStateOf<List<TransactionItemEntity>>(emptyList())
         private set
 
@@ -146,10 +158,10 @@ class PosViewModel @Inject constructor(
         }
     }
 
-    var paymentMethod by mutableStateOf("CASH") // Default
-    var amountPaidInput by mutableStateOf("")   // String for TextField
+    // Payment Logic
+    var paymentMethod by mutableStateOf("CASH")
+    var amountPaidInput by mutableStateOf("")
 
-    // Auto-calculate Change
     val changeAmount: Double
         get() {
             val paid = amountPaidInput.toDoubleOrNull() ?: 0.0
@@ -159,15 +171,13 @@ class PosViewModel @Inject constructor(
 
     fun setPaymentType(type: String) {
         paymentMethod = type
-        // Convenience: If QRIS/Transfer, auto-fill exact amount
         if (type != "CASH") {
             amountPaidInput = grandTotal.value.toInt().toString()
         } else {
-            amountPaidInput = "" // Reset for cash
+            amountPaidInput = ""
         }
     }
 
-    // Improved Receipt Generator
     private fun generateReceipt(
         txId: String,
         date: Long,
@@ -176,18 +186,24 @@ class PosViewModel @Inject constructor(
         total: Double,
         payMethod: String,
         paid: Double,
-        change: Double
+        change: Double,
+        discount: Double // Param baru
     ): String {
         val sb = StringBuilder()
-        val dateStr = java.text.SimpleDateFormat("dd/MM/yyyy HH:mm").format(java.util.Date(date))
+        val dateStr = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(date))
 
-        // Helper for centering text (assuming 32 chars width for 58mm printer)
         fun center(text: String): String {
             val padding = (32 - text.length) / 2
             return " ".repeat(padding.coerceAtLeast(0)) + text + "\n"
         }
 
         fun line() = "--------------------------------\n"
+
+        fun row(label: String, value: Double): String {
+            val vStr = "Rp${"%.0f".format(value)}"
+            val sp = 32 - label.length - vStr.length
+            return label + " ".repeat(sp.coerceAtLeast(0)) + vStr + "\n"
+        }
 
         sb.append(center("TOKO ANEKA BARU"))
         sb.append(center("Jl. Raya No. 123"))
@@ -198,37 +214,31 @@ class PosViewModel @Inject constructor(
         sb.append("Cashier: $cashier\n")
         sb.append(line())
 
-        // Items
+        var subTotalCalc = 0.0
         items.forEach { item ->
             val totalItem = item.activePrice * item.quantity
-            // Name Line
+            subTotalCalc += totalItem
             sb.append("${item.product.name}\n")
-            // Qty x Price = Total Line
             val qtyPrice = "${item.quantity} x ${"%.0f".format(item.activePrice)}"
-            val subTotal = "%.0f".format(totalItem)
-
-            // Align Right
-            val spaces = 32 - qtyPrice.length - subTotal.length
-            sb.append(qtyPrice + " ".repeat(spaces.coerceAtLeast(0)) + subTotal + "\n")
+            val subTotalStr = "%.0f".format(totalItem)
+            val spaces = 32 - qtyPrice.length - subTotalStr.length
+            sb.append(qtyPrice + " ".repeat(spaces.coerceAtLeast(0)) + subTotalStr + "\n")
         }
 
         sb.append(line())
-
-        // Totals
-        fun row(label: String, value: Double): String {
-            val vStr = "%.0f".format(value)
-            val sp = 32 - label.length - vStr.length
-            return label + " ".repeat(sp.coerceAtLeast(0)) + vStr + "\n"
+        sb.append(row("SUBTOTAL", subTotalCalc))
+        if (discount > 0) {
+            sb.append(row("DISCOUNT", -discount))
         }
-
-        sb.append(row("TOTAL", total))
+        sb.append(row("GRAND TOTAL", total))
+        sb.append(line())
         sb.append(row("PAYMENT ($payMethod)", paid))
         sb.append(row("CHANGE", change))
 
         sb.append(line())
         sb.append(center("Thank You!"))
         sb.append(center("Please Come Again"))
-        sb.append("\n\n") // Feed lines
+        sb.append("\n\n")
 
         return sb.toString()
     }
@@ -237,12 +247,12 @@ class PosViewModel @Inject constructor(
         val paid = amountPaidInput.toDoubleOrNull() ?: 0.0
         val total = grandTotal.value
 
-        // Validation: Must pay enough
-        if (paid < total) return
+        if (paid < total && paymentMethod == "CASH") return
 
-        val currentItems = _cart.value // Snapshot items
+        val currentItems = _cart.value
         val txId = java.util.UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
+        val currentDiscount = discountAmount // Ambil nilai diskon saat ini
 
         viewModelScope.launch {
             repository.saveTransaction(
@@ -251,15 +261,18 @@ class PosViewModel @Inject constructor(
                 items = currentItems,
                 paymentMethod = paymentMethod,
                 amountPaid = paid,
-                changeAmount = changeAmount
+                changeAmount = changeAmount,
+                discount = currentDiscount // [BARU] Kirim ke repository
             )
 
-            // GENERATE PRETTY RECEIPT
-            val receipt = generateReceipt(txId, now, currentUserName, currentItems, total, paymentMethod, paid, changeAmount)
+            // Generate receipt (kode receipt tetap sama karena sudah ada parameter discount)
+            val receipt = generateReceipt(txId, now, currentUserName, currentItems, total, paymentMethod, paid, changeAmount, currentDiscount)
             _receiptText.value = receipt
 
+            // Reset state
             _cart.value = emptyList()
             amountPaidInput = ""
+            discountAmount = 0.0
             paymentMethod = "CASH"
         }
     }

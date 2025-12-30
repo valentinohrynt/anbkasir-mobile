@@ -42,6 +42,8 @@ data class TransactionEntity(
     @SerializedName("changeAmount", alternate = ["change_amount", "kembalian"])
     val changeAmount: Double = 0.0,
 
+    val discount: Double = 0.0,
+
     val isSynced: Boolean = false
 )
 
