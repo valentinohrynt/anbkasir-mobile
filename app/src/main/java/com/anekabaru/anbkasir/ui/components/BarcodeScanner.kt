@@ -1,6 +1,7 @@
 package com.anekabaru.anbkasir.ui.components
 
 import android.graphics.Rect
+import android.media.MediaPlayer
 import android.util.Log
 import android.view.ViewGroup
 import androidx.annotation.OptIn
@@ -30,10 +31,12 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLifecycleOwner
+//import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.anekabaru.anbkasir.R
 import com.google.mlkit.vision.barcode.BarcodeScanning
 import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.Executors
@@ -48,12 +51,9 @@ fun BarcodeScanner(
     val lifecycleOwner = LocalLifecycleOwner.current
     val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
 
-    // [UBAH DI SINI] Definisi ukuran Persegi Panjang untuk Barcode
-    // Dibuat lebih lebar daripada tingginya
     val scanBoxWidth = 320.dp
     val scanBoxHeight = 150.dp
 
-    // Konversi ke Pixel
     val scanBoxWidthPx = with(LocalDensity.current) { scanBoxWidth.toPx() }
     val scanBoxHeightPx = with(LocalDensity.current) { scanBoxHeight.toPx() }
 
@@ -84,12 +84,10 @@ fun BarcodeScanner(
                     imageAnalysis.setAnalyzer(cameraExecutor) { imageProxy ->
                         val mediaImage = imageProxy.image
                         if (mediaImage != null) {
-                            // Analisis tetap menggunakan area crop persegi agar aman di berbagai device
-                            // ML Kit tetap akan bisa membaca barcode di dalam area visual persegi panjang
                             val width = mediaImage.width
                             val height = mediaImage.height
 
-                            val cropSize = (if (width < height) width else height) * 0.7 // Sedikit diperbesar areanya
+                            val cropSize = (if (width < height) width else height) * 0.7
                             val cx = width / 2
                             val cy = height / 2
 
@@ -109,6 +107,13 @@ fun BarcodeScanner(
                                 .addOnSuccessListener { barcodes ->
                                     for (barcode in barcodes) {
                                         barcode.rawValue?.let { code ->
+                                            try {
+                                                val mediaPlayer = MediaPlayer.create(context, R.raw.barcode_beep)
+                                                mediaPlayer.start()
+                                                mediaPlayer.setOnCompletionListener { it.release() }
+                                            } catch (e: Exception) {
+                                                e.printStackTrace()
+                                            }
                                             onCodeScanned(code)
                                         }
                                     }
@@ -141,39 +146,34 @@ fun BarcodeScanner(
             }
         )
 
-        // --- OVERLAY VISUAL (DIUBAH JADI PERSEGI PANJANG) ---
         Canvas(modifier = Modifier.fillMaxSize()) {
             val canvasWidth = size.width
             val canvasHeight = size.height
-            // Gunakan dimensi lebar dan tinggi yang terpisah
             val boxWidth = scanBoxWidthPx
             val boxHeight = scanBoxHeightPx
 
-            // Gambar background gelap full
             drawRect(
                 color = Color.Black.copy(alpha = 0.6f),
                 size = Size(canvasWidth, canvasHeight)
             )
 
-            // "Hapus" bagian tengah agar transparan (clear mode) - PERSEGI PANJANG
             drawRect(
                 color = Color.Transparent,
                 topLeft = Offset(
                     (canvasWidth - boxWidth) / 2,
                     (canvasHeight - boxHeight) / 2
                 ),
-                size = Size(boxWidth, boxHeight), // Ukuran persegi panjang
+                size = Size(boxWidth, boxHeight),
                 blendMode = BlendMode.Clear
             )
 
-            // Gambar Border Putih di sekeliling kotak - PERSEGI PANJANG
             drawRect(
                 color = Color.White,
                 topLeft = Offset(
                     (canvasWidth - boxWidth) / 2,
                     (canvasHeight - boxHeight) / 2
                 ),
-                size = Size(boxWidth, boxHeight), // Ukuran persegi panjang
+                size = Size(boxWidth, boxHeight),
                 style = Stroke(width = 4.dp.toPx())
             )
         }
