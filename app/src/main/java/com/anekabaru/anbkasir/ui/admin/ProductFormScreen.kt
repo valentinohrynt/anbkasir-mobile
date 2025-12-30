@@ -1,7 +1,6 @@
 package com.anekabaru.anbkasir.ui.admin
 
 import android.Manifest
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
@@ -24,9 +23,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.anekabaru.anbkasir.ui.PosViewModel
+import com.anekabaru.anbkasir.ui.components.AppSnackbar
 import com.anekabaru.anbkasir.ui.components.BarcodeScanner
+import com.anekabaru.anbkasir.ui.components.SnackbarType
 import com.anekabaru.anbkasir.ui.theme.*
 import androidx.compose.foundation.text.KeyboardOptions
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,7 +47,7 @@ fun ProductFormScreen(
     var stock by remember { mutableStateOf(productToEdit?.stock?.toString() ?: "0") }
     var buyPrice by remember { mutableStateOf(productToEdit?.buyPrice?.toString() ?: "0") }
 
-    // [KEMBALI] State Wholesale (Grosir)
+    // State Wholesale (Grosir)
     var wholesalePrice by remember { mutableStateOf(productToEdit?.wholesalePrice?.toInt()?.toString() ?: "0") }
     var wholesaleThreshold by remember { mutableStateOf(productToEdit?.wholesaleThreshold?.toString() ?: "0") }
 
@@ -62,11 +64,24 @@ fun ProductFormScreen(
 
     var showScanner by remember { mutableStateOf(false) }
 
+    // --- SNACKBAR SETUP ---
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var snackbarType by remember { mutableStateOf(SnackbarType.INFO) }
+
+    fun showFeedback(message: String, type: SnackbarType) {
+        snackbarType = type
+        scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short, withDismissAction = true)
+        }
+    }
+
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) showScanner = true
-        else Toast.makeText(context, "Izin kamera diperlukan", Toast.LENGTH_SHORT).show()
+        else showFeedback("Izin kamera diperlukan", SnackbarType.ERROR)
     }
 
     @Composable
@@ -99,6 +114,11 @@ fun ProductFormScreen(
     }
 
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                AppSnackbar(snackbarData = data, type = snackbarType)
+            }
+        },
         topBar = {
             TopAppBar(
                 title = { Text(if (isEditMode) "Edit Product" else "New Product", style = MaterialTheme.typography.titleLarge) },
@@ -106,11 +126,11 @@ fun ProductFormScreen(
                 actions = {
                     IconButton(onClick = {
                         if (name.isEmpty()) {
-                            Toast.makeText(context, "Nama produk wajib diisi", Toast.LENGTH_SHORT).show()
+                            showFeedback("Nama produk wajib diisi", SnackbarType.ERROR)
                             return@IconButton
                         }
                         if (unitPriceList.any { it.first.isEmpty() }) {
-                            Toast.makeText(context, "Semua nama satuan wajib diisi", Toast.LENGTH_SHORT).show()
+                            showFeedback("Semua nama satuan wajib diisi", SnackbarType.ERROR)
                             return@IconButton
                         }
 
@@ -203,7 +223,6 @@ fun ProductFormScreen(
             }
 
             // --- CARD 3: GROSIR (WHOLESALE) ---
-            // [MODIFIKASI] Menambahkan Card Input Grosir
             Card(
                 colors = CardDefaults.cardColors(containerColor = White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),

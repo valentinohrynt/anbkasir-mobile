@@ -1,6 +1,5 @@
 package com.anekabaru.anbkasir.ui.admin
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -33,6 +32,8 @@ fun ProductDetailScreen(
     onEdit: () -> Unit
 ) {
     val product = viewModel.selectedProduct
+    // [STATE DIALOG] Untuk mengontrol munculnya popup konfirmasi
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     if (product == null) {
         onBack()
@@ -42,48 +43,23 @@ fun ProductDetailScreen(
     Scaffold(
         bottomBar = {
             Surface(
-                shadowElevation = 2.dp,
+                shadowElevation = 8.dp,
                 color = White,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    OutlinedButton(
-                        onClick = {
-                            viewModel.deleteProduct(product.id)
-                            onBack()
-                        },
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = SystemRed
-                        ),
-                        border = BorderStroke(1.dp, SystemRed),
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Delete, null, modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Delete", style = MaterialTheme.typography.labelLarge)
-                    }
-
+                // Bottom bar sekarang hanya berisi tombol Edit agar bersih
+                Box(modifier = Modifier.padding(16.dp)) {
                     Button(
                         onClick = onEdit,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = BrandBlue
-                        ),
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
                         modifier = Modifier
-                            .weight(1f)
-                            .height(48.dp),
+                            .fillMaxWidth()
+                            .height(52.dp),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.Edit, null, modifier = Modifier.size(18.dp))
+                        Icon(Icons.Default.Edit, null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Edit Product", style = MaterialTheme.typography.labelLarge)
+                        Text("Edit Product", style = MaterialTheme.typography.titleMedium)
                     }
                 }
             }
@@ -95,7 +71,7 @@ fun ProductDetailScreen(
                 .padding(padding)
                 .fillMaxSize()
         ) {
-            // Header Section
+            // --- HEADER ---
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -118,12 +94,7 @@ fun ProductDetailScreen(
                                 .clip(CircleShape)
                                 .background(BackgroundApp)
                         ) {
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowBack,
-                                "Back",
-                                tint = TextPrimary,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextPrimary)
                         }
 
                         Text(
@@ -132,11 +103,27 @@ fun ProductDetailScreen(
                             color = TextPrimary
                         )
                     }
+
+                    // [POSISI AMAN] Tombol Delete di pojok kanan atas
+                    IconButton(
+                        onClick = { showDeleteDialog = true },
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(SystemRed.copy(alpha = 0.1f))
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            "Delete Product",
+                            tint = SystemRed,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.height(20.dp))
 
-                // Product Name Highlight
+                // Judul Produk
                 Text(
                     product.name,
                     style = MaterialTheme.typography.headlineSmall,
@@ -149,10 +136,7 @@ fun ProductDetailScreen(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Surface(
-                        color = SurfaceBlue,
-                        shape = RoundedCornerShape(6.dp)
-                    ) {
+                    Surface(color = SurfaceBlue, shape = RoundedCornerShape(6.dp)) {
                         Text(
                             product.category,
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
@@ -160,28 +144,26 @@ fun ProductDetailScreen(
                             color = BrandBlue
                         )
                     }
-
                     if (product.barcode != null) {
-                        Text("•", color = TextTertiary, style = MaterialTheme.typography.labelSmall)
-                        Text(product.barcode, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                        Text("•", color = TextTertiary)
+                        Text(product.barcode, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                     }
                 }
             }
 
-            // Content
+            // --- KONTEN DETAIL ---
             Column(
                 modifier = Modifier
                     .verticalScroll(rememberScrollState())
                     .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                // [MODIFIKASI] Pricing Section (Multi Unit)
+                // Section Harga
                 InfoSection(
-                    title = "Pricing (Modal & Jual)",
+                    title = "Pricing Information",
                     icon = Icons.Outlined.Payments,
                     iconColor = BrandGreen
                 ) {
-                    // 1. Buy Price (Modal)
                     CompactInfoCard(
                         label = "Buy Price (Modal)",
                         value = "Rp${"%.0f".format(product.buyPrice)}",
@@ -194,15 +176,13 @@ fun ProductDetailScreen(
 
                     Text("Selling Units", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
 
-                    // 2. Loop Daftar Satuan
                     if (product.unitPrices.isNotEmpty()) {
                         product.unitPrices.forEach { (unit, price) ->
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
                                 Text(unit, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
                                 Text(
@@ -214,31 +194,19 @@ fun ProductDetailScreen(
                             }
                         }
                     } else {
-                        // Fallback jika belum ada unitPrices
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             Text("Pcs (Default)", style = MaterialTheme.typography.bodyMedium)
                             Text("Rp${"%.0f".format(product.sellPrice)}", style = MaterialTheme.typography.titleSmall, color = BrandGreen, fontWeight = FontWeight.Bold)
                         }
                     }
 
-                    // 3. Info Grosir (Jika ada)
                     if (product.wholesalePrice > 0) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Surface(
-                            color = BackgroundApp,
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(10.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
+                        Surface(color = BackgroundApp, shape = RoundedCornerShape(8.dp), modifier = Modifier.fillMaxWidth()) {
+                            Row(modifier = Modifier.padding(12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                                 Column {
-                                    Text("Wholesale (Grosir)", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
-                                    Text("Min. Buy ${product.wholesaleThreshold}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                    Text("Grosir / Wholesale", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                                    Text("Min. Qty: ${product.wholesaleThreshold}", style = MaterialTheme.typography.bodySmall, color = TextTertiary)
                                 }
                                 Text("Rp${"%.0f".format(product.wholesalePrice)}", style = MaterialTheme.typography.titleSmall, color = BrandBlue, fontWeight = FontWeight.Bold)
                             }
@@ -246,9 +214,9 @@ fun ProductDetailScreen(
                     }
                 }
 
-                // Stock Section
+                // Section Stok
                 InfoSection(
-                    title = "Inventory",
+                    title = "Inventory Status",
                     icon = Icons.Outlined.Inventory,
                     iconColor = BrandBlue
                 ) {
@@ -256,47 +224,60 @@ fun ProductDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
-                            .background(
-                                if (product.stock <= product.wholesaleThreshold) SurfaceRed
-                                else SurfaceGreen
-                            )
+                            .background(if (product.stock <= product.wholesaleThreshold) SurfaceRed else SurfaceGreen)
                             .padding(16.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
-                            Text(
-                                "Current Stock",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = TextTertiary
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                "${product.stock}",
-                                style = MaterialTheme.typography.headlineSmall,
-                                color = if (product.stock <= product.wholesaleThreshold) SystemRed else BrandGreen
-                            )
+                            Text("Current Stock", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
+                            Text("${product.stock}", style = MaterialTheme.typography.headlineSmall, color = if (product.stock <= product.wholesaleThreshold) SystemRed else BrandGreen, fontWeight = FontWeight.Bold)
                         }
-
                         if (product.stock <= product.wholesaleThreshold) {
-                            Surface(
-                                color = SystemRed,
-                                shape = RoundedCornerShape(8.dp)
-                            ) {
-                                Text(
-                                    "Low Stock",
-                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = White
-                                )
+                            Surface(color = SystemRed, shape = RoundedCornerShape(8.dp)) {
+                                Text("Low Stock", modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp), style = MaterialTheme.typography.labelSmall, color = White)
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(40.dp))
             }
         }
+    }
+
+    // --- DIALOG KONFIRMASI HAPUS ---
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            icon = { Icon(Icons.Default.Delete, null, tint = SystemRed) },
+            title = { Text("Hapus Produk?", fontWeight = FontWeight.Bold) },
+            text = {
+                Text(
+                    "Apakah Anda yakin ingin menghapus '${product.name}'? \n\nTindakan ini tidak dapat dibatalkan.",
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                )
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteProduct(product.id)
+                        showDeleteDialog = false
+                        onBack()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = SystemRed)
+                ) {
+                    Text("Ya, Hapus")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Batal", color = TextSecondary)
+                }
+            },
+            containerColor = White,
+            shape = RoundedCornerShape(16.dp)
+        )
     }
 }
 
@@ -310,7 +291,7 @@ fun InfoSection(
     Card(
         colors = CardDefaults.cardColors(containerColor = White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        shape = RoundedCornerShape(12.dp)
+        shape = RoundedCornerShape(16.dp)
     ) {
         Column(
             modifier = Modifier
@@ -318,31 +299,18 @@ fun InfoSection(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(iconColor.copy(alpha = 0.12f)),
+                        .background(iconColor.copy(alpha = 0.1f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = iconColor,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    Icon(imageVector = icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp))
                 }
-                Text(
-                    title,
-                    style = MaterialTheme.typography.titleMedium,
-                    color = TextPrimary
-                )
+                Text(title, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
             }
-
             content()
         }
     }
@@ -352,9 +320,7 @@ fun InfoSection(
 fun CompactInfoCard(
     label: String,
     value: String,
-    modifier: Modifier = Modifier,
-    valueColor: Color = TextPrimary,
-    isHighlight: Boolean = false
+    modifier: Modifier = Modifier
 ) {
     Column(
         modifier = modifier
@@ -362,17 +328,8 @@ fun CompactInfoCard(
             .background(BackgroundApp)
             .padding(12.dp)
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelSmall,
-            color = TextTertiary
-        )
+        Text(label, style = MaterialTheme.typography.labelSmall, color = TextTertiary)
         Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            value,
-            style = MaterialTheme.typography.titleSmall,
-            color = valueColor,
-            fontWeight = if (isHighlight) FontWeight.Bold else FontWeight.SemiBold
-        )
+        Text(value, style = MaterialTheme.typography.titleSmall, color = TextPrimary, fontWeight = FontWeight.Bold)
     }
 }

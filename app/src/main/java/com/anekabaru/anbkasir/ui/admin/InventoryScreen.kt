@@ -1,7 +1,6 @@
 package com.anekabaru.anbkasir.ui.admin
 
 import android.Manifest
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -34,9 +33,12 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.anekabaru.anbkasir.data.ProductEntity
 import com.anekabaru.anbkasir.ui.PosViewModel
+import com.anekabaru.anbkasir.ui.components.AppSnackbar
 import com.anekabaru.anbkasir.ui.components.BarcodeScanner
 import com.anekabaru.anbkasir.ui.components.PullToRefreshLayout
+import com.anekabaru.anbkasir.ui.components.SnackbarType
 import com.anekabaru.anbkasir.ui.theme.*
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -52,26 +54,43 @@ fun InventoryScreen(
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
+    // [BARU] State untuk filter stok menipis
+    var showLowStockOnly by remember { mutableStateOf(false) }
+
     var showScanner by remember { mutableStateOf(false) }
+
+    // --- SNACKBAR SETUP ---
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var snackbarType by remember { mutableStateOf(SnackbarType.INFO) }
+
+    fun showFeedback(message: String, type: SnackbarType) {
+        snackbarType = type
+        scope.launch {
+            snackbarHostState.currentSnackbarData?.dismiss()
+            snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short, withDismissAction = true)
+        }
+    }
 
     val cameraPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) showScanner = true
-        else Toast.makeText(context, "Izin kamera diperlukan", Toast.LENGTH_SHORT).show()
+        else showFeedback("Izin kamera diperlukan", SnackbarType.ERROR)
     }
 
     fun onBarcodeDetected(code: String) {
         searchQuery = code
         showScanner = false
-        Toast.makeText(context, "Barcode Terdeteksi: $code", Toast.LENGTH_SHORT).show()
+        showFeedback("Barcode Terdeteksi: $code", SnackbarType.SUCCESS)
     }
 
     val categories = remember(products) {
         products.map { it.category }.distinct().sorted()
     }
 
-    val filteredProducts = remember(products, searchQuery, selectedCategory) {
+    // [UPDATE LOGIC FILTER]
+    val filteredProducts = remember(products, searchQuery, selectedCategory, showLowStockOnly) {
         products.filter { product ->
             val matchesSearch = if (searchQuery.isBlank()) true else {
                 product.name.contains(searchQuery, ignoreCase = true) ||
@@ -79,11 +98,21 @@ fun InventoryScreen(
                         (product.barcode ?: "").contains(searchQuery)
             }
             val matchesCategory = selectedCategory == null || product.category == selectedCategory
-            matchesSearch && matchesCategory
+
+            // Logic Low Stock: Stok <= Threshold atau <= 0
+            val isLowStock = product.stock <= 0
+            val matchesStock = if (showLowStockOnly) isLowStock else true
+
+            matchesSearch && matchesCategory && matchesStock
         }
     }
 
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState) { data ->
+                AppSnackbar(snackbarData = data, type = snackbarType)
+            }
+        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
@@ -95,7 +124,6 @@ fun InventoryScreen(
         },
         containerColor = BackgroundApp
     ) { padding ->
-        // [PENTING] Menggunakan PullToRefreshLayout yang tadi Anda buat
         PullToRefreshLayout(
             isRefreshing = isSyncing,
             onRefresh = { viewModel.sync() },
@@ -114,7 +142,6 @@ fun InventoryScreen(
                                 }
                             }
                             Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(SurfaceBlue), contentAlignment = Alignment.Center) {
-                                // Jika Inventory2 error (butuh library extended), ganti Icons.Default.Inventory
                                 Icon(Icons.Outlined.Inventory2, null, tint = BrandBlue, modifier = Modifier.size(20.dp))
                             }
                         }
@@ -138,9 +165,62 @@ fun InventoryScreen(
                             singleLine = true
                         )
                     }
-                    LazyRow(modifier = Modifier.fillMaxWidth(), contentPadding = PaddingValues(horizontal = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        item { CategoryChip("All", selectedCategory == null) { selectedCategory = null } }
-                        items(categories) { category -> CategoryChip(category, selectedCategory == category) { selectedCategory = category } }
+
+                    // [UPDATE] Filter Chips Row
+                    LazyRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentPadding = PaddingValues(horizontal = 20.dp),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // 1. Chip All (Reset semua filter)
+                        item {
+                            CategoryChip(
+                                label = "All",
+                                isSelected = selectedCategory == null && !showLowStockOnly,
+                                onClick = {
+                                    selectedCategory = null
+                                    showLowStockOnly = false
+                                }
+                            )
+                        }
+
+                        // 2. Chip KHUSUS LOW STOCK (Merah)
+                        item {
+                            FilterChip(
+                                selected = showLowStockOnly,
+                                onClick = { showLowStockOnly = !showLowStockOnly },
+                                label = {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Warning, null, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Low Stock")
+                                    }
+                                },
+                                colors = FilterChipDefaults.filterChipColors(
+                                    selectedContainerColor = SystemRed,
+                                    selectedLabelColor = White,
+                                    selectedLeadingIconColor = White,
+                                    containerColor = SurfaceRed,
+                                    labelColor = SystemRed,
+                                    iconColor = SystemRed
+                                ),
+                                border = FilterChipDefaults.filterChipBorder(
+                                    enabled = true,
+                                    selected = showLowStockOnly,
+                                    borderColor = SystemRed
+                                ),
+                                shape = RoundedCornerShape(20.dp)
+                            )
+                        }
+
+                        // 3. Chip Kategori
+                        items(categories) { category ->
+                            CategoryChip(
+                                label = category,
+                                isSelected = selectedCategory == category,
+                                onClick = { selectedCategory = category }
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(16.dp))
                 }
@@ -195,8 +275,6 @@ fun CategoryChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
 fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
     val isLowStock = product.stock <= product.wholesaleThreshold
 
-    // [IMPROVEMENT] Mencari nama unit dari harga default (sellPrice)
-    // Jika tidak ketemu di map, default ke "Pcs" atau ambil key pertama
     val defaultUnit = product.unitPrices.entries.find { it.value == product.sellPrice }?.key
         ?: product.unitPrices.keys.firstOrNull()
         ?: "Pcs"
@@ -222,7 +300,6 @@ fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
                     Surface(color = SurfaceBlue, shape = RoundedCornerShape(6.dp)) {
                         Text(product.category, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = BrandBlue)
                     }
-                    // Tampilkan Harga + Satuan
                     Text(
                         "Rp${"%.0f".format(product.sellPrice)} / $defaultUnit",
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),

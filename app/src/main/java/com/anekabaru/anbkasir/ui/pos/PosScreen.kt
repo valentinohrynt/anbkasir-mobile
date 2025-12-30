@@ -26,6 +26,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -302,20 +303,36 @@ fun ProductCardSimple(product: ProductEntity, qty: Int, onAdd: () -> Unit, onRem
         ?: product.unitPrices.keys.firstOrNull()
         ?: "Pcs"
 
+    // [TAMBAHAN] Cek jika stok menipis (misal di bawah 10 atau threshold)
+    val isLowStock = product.stock <= 5
+
     Card(
-        modifier = Modifier.fillMaxWidth().height(150.dp).clickable(enabled = !isSelected) { onClickInitial() },
+        modifier = Modifier.fillMaxWidth().height(160.dp).clickable(enabled = !isSelected) { onClickInitial() }, // Tinggi sedikit ditambah
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-        colors = CardDefaults.cardColors(containerColor = White),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isLowStock) Color(0xFFFFF5F5) else White // Sedikit merah jika stok tipis
+        ),
         shape = RoundedCornerShape(12.dp),
         border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, BrandGreen) else null
     ) {
         Column(modifier = Modifier.fillMaxSize().padding(12.dp), verticalArrangement = Arrangement.SpaceBetween) {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Surface(color = SurfaceBlue, shape = RoundedCornerShape(6.dp)) {
-                    Text(product.category.uppercase(), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = BrandBlue, fontSize = 10.sp)
+                Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                    Surface(color = SurfaceBlue, shape = RoundedCornerShape(6.dp)) {
+                        Text(product.category.uppercase(), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = BrandBlue, fontSize = 10.sp)
+                    }
+                    // [BARU] Indikator Stok di Pojok Kanan Atas Kartu
+                    Text(
+                        "Stok: ${product.stock}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (isLowStock) SystemRed else TextTertiary,
+                        fontWeight = FontWeight.Bold
+                    )
                 }
+
                 Text(product.name, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis, color = TextPrimary)
             }
+
             if (isSelected) {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     Surface(modifier = Modifier.size(28.dp).clickable { onRemove() }, shape = RoundedCornerShape(8.dp), color = BackgroundApp) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Remove, null, tint = SystemRed, modifier = Modifier.size(16.dp)) } }

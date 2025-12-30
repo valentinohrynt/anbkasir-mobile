@@ -1,159 +1,301 @@
 package com.anekabaru.anbkasir.ui.admin
 
+import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.TrendingUp
-import androidx.compose.material.icons.filled.Assessment
-import androidx.compose.material.icons.filled.DateRange
-import androidx.compose.material.icons.filled.Money
-import androidx.compose.material.icons.filled.Receipt
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.outlined.Inventory
+import androidx.compose.material.icons.outlined.MonetizationOn
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.core.content.FileProvider
+import com.anekabaru.anbkasir.data.ProductEntity
 import com.anekabaru.anbkasir.ui.PosViewModel
-import com.anekabaru.anbkasir.ui.components.PullToRefreshLayout
 import com.anekabaru.anbkasir.ui.theme.*
-import java.util.Calendar
+import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
-    val calendar = Calendar.getInstance().apply {
-        set(Calendar.HOUR_OF_DAY, 0)
-        set(Calendar.MINUTE, 0)
-        set(Calendar.SECOND, 0)
-    }
-    val startOfDay = calendar.timeInMillis
-    val endOfDay = System.currentTimeMillis()
+fun ReportScreen(
+    viewModel: PosViewModel,
+    onBack: () -> Unit
+) {
+    val context = LocalContext.current
+    val products by viewModel.products.collectAsState()
 
-    val dailySales by viewModel.getSalesTotal(startOfDay, endOfDay).collectAsState(initial = 0.0)
-    val txCount by viewModel.getTxCount(startOfDay, endOfDay).collectAsState(initial = 0)
-    val isSyncing by viewModel.isSyncing.collectAsState()
+    val totalAssetValue = remember(products) {
+        products.sumOf { it.stock * it.buyPrice }
+    }
+
+    val totalPotentialRevenue = remember(products) {
+        products.sumOf { it.stock * it.sellPrice }
+    }
+
+    val outOfStockProducts = remember(products) {
+        products.filter { it.stock <= 0 }
+    }
+
+    val lowStockProducts = remember(products) {
+        products.filter { it.stock > 0 && it.stock <= it.wholesaleThreshold }
+    }
+
+    var showOutOfStockDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Reports & Analytics", style = MaterialTheme.typography.titleLarge) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null, tint = TextPrimary)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = White)
+            )
+        },
         containerColor = BackgroundApp
     ) { padding ->
-        PullToRefreshLayout(
-            isRefreshing = isSyncing,
-            onRefresh = { viewModel.sync() },
-            modifier = Modifier.padding(padding)
+        Column(
+            modifier = Modifier
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
+
+            Text("Asset Valuation", style = MaterialTheme.typography.titleMedium, color = TextSecondary)
+
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SummaryCard(
+                    title = "Total Stock Cost",
+                    value = "Rp${"%.0f".format(totalAssetValue)}",
+                    icon = Icons.Outlined.Inventory,
+                    color = BrandBlue,
+                    modifier = Modifier.weight(1f)
+                )
+                SummaryCard(
+                    title = "Potential Revenue",
+                    value = "Rp${"%.0f".format(totalPotentialRevenue)}",
+                    icon = Icons.Outlined.MonetizationOn,
+                    color = BrandGreen,
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Text("Inventory Status", style = MaterialTheme.typography.titleMedium, color = TextSecondary)
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = White),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
+                    .fillMaxWidth()
+                    .clickable { showOutOfStockDialog = true }
             ) {
-                // --- CUSTOM HEADER ---
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(White)
-                        .padding(20.dp)
+                Row(
+                    modifier = Modifier.padding(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    Box(
+                        modifier = Modifier
+                            .size(48.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (outOfStockProducts.isNotEmpty())
+                                    SystemRed.copy(alpha = 0.1f)
+                                else
+                                    BrandGreen.copy(alpha = 0.1f)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            if (outOfStockProducts.isNotEmpty())
+                                Icons.Default.Warning
+                            else
+                                Icons.Default.TrendingUp,
+                            null,
+                            tint = if (outOfStockProducts.isNotEmpty()) SystemRed else BrandGreen
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.width(16.dp))
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Out of Stock Items", style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            if (outOfStockProducts.isNotEmpty())
+                                "${outOfStockProducts.size} items need restocking"
+                            else
+                                "All items are available",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (outOfStockProducts.isNotEmpty()) SystemRed else TextSecondary
+                        )
+                    }
+
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        null,
+                        modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = 180f },
+                        tint = TextTertiary
+                    )
+                }
+            }
+
+            if (lowStockProducts.isNotEmpty()) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = White),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(BrandOrange.copy(alpha = 0.1f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Default.Warning, null, tint = BrandOrange)
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text("Low Stock Warning", style = MaterialTheme.typography.titleSmall)
+                            Text("${lowStockProducts.size} items running low", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    if (showOutOfStockDialog) {
+        Dialog(
+            onDismissRequest = { showOutOfStockDialog = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxSize().padding(16.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = BackgroundApp
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            IconButton(onClick = onBack) {
-                                Icon(
-                                    Icons.AutoMirrored.Filled.ArrowBack,
-                                    "Back",
-                                    tint = TextPrimary,
-                                    modifier = Modifier.size(20.dp)
-                                )
-                            }
-
-                            Column {
-                                Text(
-                                    "Financial Report",
-                                    style = MaterialTheme.typography.titleLarge,
-                                    color = TextPrimary
-                                )
-                                Text(
-                                    "Daily Analytics",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = TextSecondary
-                                )
-                            }
+                        Column {
+                            Text("Out of Stock Report", style = MaterialTheme.typography.titleLarge)
+                            Text("${outOfStockProducts.size} items require purchase", color = SystemRed)
                         }
-
-                        Box(
-                            modifier = Modifier
-                                .size(36.dp)
-                                .clip(CircleShape)
-                                .background(SurfaceRed),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Default.Assessment,
-                                contentDescription = null,
-                                tint = SystemRed,
-                                modifier = Modifier.size(20.dp)
-                            )
+                        IconButton(onClick = { showOutOfStockDialog = false }) {
+                            Icon(Icons.Default.Close, null)
                         }
                     }
-                }
 
-                // --- CONTENT ---
-                Column(modifier = Modifier.padding(20.dp)) {
+                    Divider(modifier = Modifier.padding(vertical = 12.dp))
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.DateRange, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            "TODAY'S SUMMARY",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary,
-                            letterSpacing = 1.sp
-                        )
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        items(outOfStockProducts) { product ->
+                            Card(
+                                colors = CardDefaults.cardColors(containerColor = White),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column {
+                                        Text(product.name, fontWeight = FontWeight.Bold)
+                                        Text(product.category, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                                    }
+                                    Surface(
+                                        color = SystemRed.copy(alpha = 0.1f),
+                                        shape = RoundedCornerShape(4.dp)
+                                    ) {
+                                        Text(
+                                            "Stock: ${product.stock}",
+                                            modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                                            color = SystemRed,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // [UPDATE] Format uang menggunakan %.0f agar rapi
-                    StatCard(
-                        title = "Total Revenue",
-                        value = "Rp${"%.0f".format(dailySales ?: 0.0)}",
-                        icon = Icons.Default.Money,
-                        color = BrandGreen,
-                        isHero = true
-                    )
+                    Button(
+                        onClick = {
+                            val csv = StringBuilder()
+                            csv.append("Product Name,Category,Barcode,Stock,Buy Price\n")
+                            outOfStockProducts.forEach {
+                                csv.append("\"${it.name}\",\"${it.category}\",\"${it.barcode ?: "-"}\",${it.stock},${it.buyPrice}\n")
+                            }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                            val file = File(
+                                context.cacheDir,
+                                "out_of_stock_${System.currentTimeMillis()}.csv"
+                            )
+                            file.writeText(csv.toString())
 
-                    StatCard(
-                        title = "Transactions",
-                        value = "$txCount Orders",
-                        icon = Icons.Default.Receipt,
-                        color = BrandBlue
-                    )
+                            val uri = FileProvider.getUriForFile(
+                                context,
+                                "${context.packageName}.provider",
+                                file
+                            )
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                            val intent = Intent(Intent.ACTION_SEND).apply {
+                                type = "text/csv"
+                                putExtra(Intent.EXTRA_STREAM, uri)
+                                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            }
 
-                    val estimatedProfit = (dailySales ?: 0.0) * 0.2
-                    StatCard(
-                        title = "Est. Gross Profit (20%)",
-                        value = "Rp${"%.0f".format(estimatedProfit)}", // [UPDATE] Format Rapi
-                        icon = Icons.AutoMirrored.Filled.TrendingUp,
-                        color = BrandOrange
-                    )
+                            context.startActivity(
+                                Intent.createChooser(intent, "Export CSV Report")
+                            )
+                        },
+                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
+                    ) {
+                        Icon(Icons.Default.Share, null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Export CSV")
+                    }
                 }
             }
         }
@@ -161,52 +303,36 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-fun StatCard(
+fun SummaryCard(
     title: String,
     value: String,
     icon: ImageVector,
     color: Color,
-    isHero: Boolean = false
+    modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
+        modifier = modifier,
         colors = CardDefaults.cardColors(containerColor = White),
-        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(20.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = color.copy(alpha = 0.1f),
-                modifier = Modifier.size(if (isHero) 56.dp else 48.dp)
+            Box(
+                modifier = Modifier
+                    .size(36.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(color.copy(alpha = 0.1f)),
+                contentAlignment = Alignment.Center
             ) {
-                Box(contentAlignment = Alignment.Center) {
-                    Icon(
-                        imageVector = icon,
-                        contentDescription = null,
-                        tint = color,
-                        modifier = Modifier.size(if (isHero) 28.dp else 24.dp)
-                    )
-                }
+                Icon(icon, null, tint = color)
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
-
             Column {
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TextSecondary
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = value,
-                    style = if (isHero) MaterialTheme.typography.headlineSmall else MaterialTheme.typography.titleLarge,
-                    color = TextPrimary
-                )
+                Text(title, style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+                Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             }
         }
     }
