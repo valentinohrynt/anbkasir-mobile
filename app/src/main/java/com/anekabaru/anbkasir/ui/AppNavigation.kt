@@ -5,7 +5,12 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.anekabaru.anbkasir.ui.admin.*
+import com.anekabaru.anbkasir.ui.admin.InventoryScreen
+import com.anekabaru.anbkasir.ui.admin.ProductDetailScreen
+import com.anekabaru.anbkasir.ui.admin.ProductFormScreen
+import com.anekabaru.anbkasir.ui.admin.ReportScreen
+import com.anekabaru.anbkasir.ui.admin.SalesHistoryScreen
+import com.anekabaru.anbkasir.ui.admin.TransactionDetailScreen
 import com.anekabaru.anbkasir.ui.login.LoginScreen
 import com.anekabaru.anbkasir.ui.pos.CartScreen
 import com.anekabaru.anbkasir.ui.pos.PosScreen
