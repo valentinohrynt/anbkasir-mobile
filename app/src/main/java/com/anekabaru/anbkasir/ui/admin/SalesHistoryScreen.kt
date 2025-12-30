@@ -71,7 +71,7 @@ fun SalesHistoryScreen(
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
 
-                // --- CUSTOM HEADER (Matches InventoryScreen Style) ---
+                // --- CUSTOM HEADER ---
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -220,8 +220,9 @@ fun SalesHistoryScreen(
                                     },
                                     trailingContent = {
                                         Column(horizontalAlignment = Alignment.End) {
+                                            // [UPDATE] Format uang biar rapi (%.0f)
                                             Text(
-                                                "Rp${"%.2f".format(tx.totalAmount)}",
+                                                "Rp${"%.0f".format(tx.totalAmount)}",
                                                 style = MaterialTheme.typography.titleSmall,
                                                 color = BrandGreen
                                             )

@@ -19,7 +19,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -117,7 +116,7 @@ fun ProductDetailScreen(
                             modifier = Modifier
                                 .size(40.dp)
                                 .clip(CircleShape)
-                                .background(BackgroundApp) // Matches theme background
+                                .background(BackgroundApp)
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.ArrowBack,
@@ -163,16 +162,8 @@ fun ProductDetailScreen(
                     }
 
                     if (product.barcode != null) {
-                        Text(
-                            "•",
-                            color = TextTertiary,
-                            style = MaterialTheme.typography.labelSmall
-                        )
-                        Text(
-                            product.barcode,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = TextSecondary
-                        )
+                        Text("•", color = TextTertiary, style = MaterialTheme.typography.labelSmall)
+                        Text(product.barcode, style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                     }
                 }
             }
@@ -184,44 +175,74 @@ fun ProductDetailScreen(
                     .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Pricing Section
+                // [MODIFIKASI] Pricing Section (Multi Unit)
                 InfoSection(
-                    title = "Pricing",
+                    title = "Pricing (Modal & Jual)",
                     icon = Icons.Outlined.Payments,
                     iconColor = BrandGreen
                 ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CompactInfoCard(
-                            label = "Buy Price",
-                            value = "Rp${product.buyPrice}",
-                            modifier = Modifier.weight(1f)
-                        )
-                        CompactInfoCard(
-                            label = "Sell Price",
-                            value = "Rp${product.sellPrice}",
-                            modifier = Modifier.weight(1f),
-                            valueColor = BrandGreen,
-                            isHighlight = true
-                        )
+                    // 1. Buy Price (Modal)
+                    CompactInfoCard(
+                        label = "Buy Price (Modal)",
+                        value = "Rp${"%.0f".format(product.buyPrice)}",
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Divider(color = BorderColor)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    Text("Selling Units", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
+
+                    // 2. Loop Daftar Satuan
+                    if (product.unitPrices.isNotEmpty()) {
+                        product.unitPrices.forEach { (unit, price) ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(unit, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
+                                Text(
+                                    "Rp${"%.0f".format(price)}",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = BrandGreen,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    } else {
+                        // Fallback jika belum ada unitPrices
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Pcs (Default)", style = MaterialTheme.typography.bodyMedium)
+                            Text("Rp${"%.0f".format(product.sellPrice)}", style = MaterialTheme.typography.titleSmall, color = BrandGreen, fontWeight = FontWeight.Bold)
+                        }
                     }
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        CompactInfoCard(
-                            label = "Wholesale",
-                            value = "Rp${product.wholesalePrice}",
-                            modifier = Modifier.weight(1f)
-                        )
-                        CompactInfoCard(
-                            label = "Min. Qty",
-                            value = "${product.wholesaleThreshold}",
-                            modifier = Modifier.weight(1f)
-                        )
+                    // 3. Info Grosir (Jika ada)
+                    if (product.wholesalePrice > 0) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Surface(
+                            color = BackgroundApp,
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Column {
+                                    Text("Wholesale (Grosir)", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
+                                    Text("Min. Buy ${product.wholesaleThreshold}", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                                }
+                                Text("Rp${"%.0f".format(product.wholesalePrice)}", style = MaterialTheme.typography.titleSmall, color = BrandBlue, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
 
@@ -236,7 +257,7 @@ fun ProductDetailScreen(
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(12.dp))
                             .background(
-                                if (product.stock < 10) SurfaceRed
+                                if (product.stock <= product.wholesaleThreshold) SurfaceRed
                                 else SurfaceGreen
                             )
                             .padding(16.dp),
@@ -251,13 +272,13 @@ fun ProductDetailScreen(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                "${product.stock} units",
+                                "${product.stock}",
                                 style = MaterialTheme.typography.headlineSmall,
-                                color = if (product.stock < 10) SystemRed else BrandGreen
+                                color = if (product.stock <= product.wholesaleThreshold) SystemRed else BrandGreen
                             )
                         }
 
-                        if (product.stock < 10) {
+                        if (product.stock <= product.wholesaleThreshold) {
                             Surface(
                                 color = SystemRed,
                                 shape = RoundedCornerShape(8.dp)

@@ -1,5 +1,6 @@
 package com.anekabaru.anbkasir.data
 
+import android.util.Log
 import com.anekabaru.anbkasir.data.remote.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -11,9 +12,10 @@ class PosRepository @Inject constructor(
     private val db: AppDatabase,
     private val api: ApiService
 ) {
+    private val TAG = "PosRepository"
+
     val products = db.posDao().getAllProducts()
     val suppliers = db.posDao().getSuppliers()
-    // NEW: Expose Sales History from DB
     val salesHistory = db.posDao().getAllTransactions()
 
     // --- WRITE OPERATIONS ---
@@ -23,22 +25,32 @@ class PosRepository @Inject constructor(
         safeSync()
     }
 
-    // NEW: Update Product
     suspend fun updateProduct(p: ProductEntity) {
         db.posDao().updateProduct(
-            p.id, p.name, p.buyPrice, p.sellPrice,
-            p.wholesalePrice, p.wholesaleThreshold, p.stock,
-            p.category, p.barcode, System.currentTimeMillis()
+            id = p.id,
+            n = p.name,
+            b = p.buyPrice,
+            s = p.sellPrice,
+            w = p.wholesalePrice,
+            t = p.wholesaleThreshold,
+            st = p.stock,
+            c = p.category,
+            bar = p.barcode,
+            up = p.unitPrices,
+            u = System.currentTimeMillis()
         )
         safeSync()
     }
 
-    // NEW: Delete Product
     suspend fun deleteProduct(id: String) {
         db.posDao().deleteProduct(id)
-        // Try deleting from cloud immediately (fire & forget)
         CoroutineScope(Dispatchers.IO).launch {
-            try { api.deleteProduct(id) } catch(e: Exception) { e.printStackTrace() }
+            try {
+                api.deleteProduct(id)
+                Log.d(TAG, "Product $id deleted from server")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to delete product from server: ${e.message}")
+            }
         }
     }
 
@@ -55,7 +67,6 @@ class PosRepository @Inject constructor(
         safeSync()
     }
 
-    // MODIFIED: saveTransaction to include payment details
     suspend fun saveTransaction(
         total: Double,
         cashier: String,
@@ -81,21 +92,22 @@ class PosRepository @Inject constructor(
 
         val txItems = items.map {
             TransactionItemEntity(
-                transactionId = txId, productId = it.product.id, productName = it.product.name,
-                quantity = it.quantity, priceSnapshot = it.activePrice, subtotal = it.total
+                transactionId = txId,
+                productId = it.product.id,
+                productName = it.product.name,
+                quantity = it.quantity,
+                unit = it.selectedUnit,
+                priceSnapshot = it.activePrice,
+                subtotal = it.total
             )
         }
         db.posDao().insertTransactionItems(txItems)
 
-        // Reduce Local Stock Immediately
         items.forEach {
             val p = it.product
             val newStock = p.stock - it.quantity
-            db.posDao().updateProduct(
-                p.id, p.name, p.buyPrice, p.sellPrice,
-                p.wholesalePrice, p.wholesaleThreshold, newStock,
-                p.category, p.barcode, System.currentTimeMillis()
-            )
+            val updatedP = p.copy(stock = newStock, updatedAt = System.currentTimeMillis())
+            updateProduct(updatedP)
         }
 
         safeSync()
@@ -108,8 +120,13 @@ class PosRepository @Inject constructor(
     }
 
     suspend fun syncData() {
+        Log.d(TAG, "--- SYNC STARTED ---")
         try {
-            // 1. PUSH
+            // ==========================================
+            // 1. PUSH (UPLOAD DATA LOKAL KE SERVER)
+            // ==========================================
+            // Bagian ini tidak berubah (tetap upload data offline dulu)
+
             val unsyncedProd = db.posDao().getUnsyncedProducts()
             if (unsyncedProd.isNotEmpty()) {
                 val res = api.pushProducts(unsyncedProd)
@@ -121,16 +138,9 @@ class PosRepository @Inject constructor(
                 val payload = unsyncedTx.map { tx ->
                     val items = db.posDao().getItemsForTransaction(tx.id)
                     TransactionSyncPayload(
-                        id = tx.id,
-                        totalAmount = tx.totalAmount,
-                        date = tx.date,
-                        cashierName = tx.cashierName,
-                        paymentMethod = tx.paymentMethod,
-                        amountPaid = tx.amountPaid,
-                        changeAmount = tx.changeAmount,
-                        items = items.map {
-                            TransactionItemSyncPayload(it.id, it.productId, it.productName, it.quantity, it.priceSnapshot, it.subtotal)
-                        }
+                        tx.id, tx.totalAmount, tx.date, tx.cashierName, tx.paymentMethod,
+                        tx.amountPaid, tx.changeAmount,
+                        items.map { TransactionItemSyncPayload(it.id, it.productId, it.productName, it.quantity, it.unit, it.priceSnapshot, it.subtotal) }
                     )
                 }
                 val res = api.pushTransactions(payload)
@@ -143,49 +153,107 @@ class PosRepository @Inject constructor(
                 if (res.status == "success") db.posDao().markSuppliersSynced(res.syncedIds)
             }
 
-            val unsyncedPur = db.posDao().getUnsyncedPurchases()
-            if (unsyncedPur.isNotEmpty()) {
-                val payload = unsyncedPur.map { PurchaseSyncPayload(it.id, it.supplierId, it.productId, it.quantity, it.totalCost, it.date) }
-                val res = api.pushPurchases(payload)
-                if (res.status == "success") db.posDao().markPurchasesSynced(res.syncedIds)
+            // ==========================================
+            // 2. PULL (MIRROR SYNC - DELETE THEN INSERT)
+            // ==========================================
+
+            // --- A. PRODUCTS (MIRROR) ---
+            Log.d(TAG, "Pulling Products...")
+            val serverProds = api.getProducts()
+
+            // 1. HAPUS SEMUA produk lokal yang sudah sync (tanpa syarat)
+            db.posDao().deleteSyncedProducts()
+
+            // 2. Masukkan yang baru (jika ada)
+            if (serverProds.isNotEmpty()) {
+                val safeProducts = serverProds.map { p ->
+                    val safeUnitPrices = p.unitPrices ?: emptyMap()
+                    p.copy(isSynced = true, unitPrices = safeUnitPrices)
+                }
+                db.posDao().insertProducts(safeProducts)
+                Log.d(TAG, "Products mirrored: ${safeProducts.size} items.")
+            } else {
+                Log.d(TAG, "Products mirrored: Server empty, local cleared.")
             }
 
-            // 2. PULL (Get updates from Cloud)
-            val serverProds = api.getProducts()
-            db.posDao().insertProducts(serverProds.map { it.copy(isSynced = true) })
 
+            // --- B. SUPPLIERS (MIRROR) ---
+            Log.d(TAG, "Pulling Suppliers...")
             val serverSups = api.getSuppliers()
-            db.posDao().insertSuppliers(serverSups.map { it.copy(isSynced = true) })
 
-            try {
-                val serverTransactions = api.getSalesHistory()
-                if (serverTransactions.isNotEmpty()) {
-                    serverTransactions.forEach { tx ->
-                        val safeTx = TransactionEntity(
-                            id = tx.id,
-                            totalAmount = tx.totalAmount,
-                            cashierName = tx.cashierName ?: "Unknown",
-                            date = tx.date,
-                            paymentMethod = tx.paymentMethod ?: "CASH",
-                            amountPaid = tx.amountPaid,
-                            changeAmount = tx.changeAmount,
-                            isSynced = true
-                        )
-                        db.posDao().insertTransaction(safeTx)
+            // 1. HAPUS SEMUA supplier lokal yang sudah sync
+            db.posDao().deleteSyncedSuppliers()
+
+            // 2. Masukkan yang baru (jika ada)
+            if (serverSups.isNotEmpty()) {
+                db.posDao().insertSuppliers(serverSups.map { it.copy(isSynced = true) })
+                Log.d(TAG, "Suppliers mirrored: ${serverSups.size} items.")
+            }
+
+
+            // --- C. SALES HISTORY (MIRROR) ---
+            Log.d(TAG, "Pulling Sales History...")
+            val serverTransactions = api.getSalesHistory()
+
+            // 1. HAPUS SEMUA history lokal yang sudah sync
+            db.posDao().deleteSyncedTransactionItems()
+            db.posDao().deleteSyncedTransactions()
+
+            // 2. Masukkan yang baru (jika ada)
+            if (serverTransactions.isNotEmpty()) {
+                serverTransactions.forEach { payload ->
+                    // Sanitasi Data (Cegah Crash NullPointer)
+                    val safeCashier = payload.cashierName ?: "Cashier"
+                    val safePayment = payload.paymentMethod ?: "CASH"
+
+                    val safeTx = TransactionEntity(
+                        id = payload.id,
+                        totalAmount = payload.totalAmount,
+                        cashierName = safeCashier,
+                        date = payload.date,
+                        paymentMethod = safePayment,
+                        amountPaid = payload.amountPaid,
+                        changeAmount = payload.changeAmount,
+                        discount = 0.0,
+                        isSynced = true
+                    )
+                    db.posDao().insertTransaction(safeTx)
+
+                    if (payload.items.isNotEmpty()) {
+                        val itemEntities = payload.items.map { itemDto ->
+                            val safeItemId = itemDto.id ?: UUID.randomUUID().toString()
+                            val safeProductId = itemDto.productId ?: "UNKNOWN"
+                            val safeProductName = itemDto.productName ?: "Unknown Product"
+                            val safeUnit = itemDto.unit ?: "Pcs"
+
+                            TransactionItemEntity(
+                                id = safeItemId,
+                                transactionId = payload.id,
+                                productId = safeProductId,
+                                productName = safeProductName,
+                                quantity = itemDto.quantity,
+                                unit = safeUnit,
+                                priceSnapshot = itemDto.priceSnapshot,
+                                subtotal = itemDto.subtotal
+                            )
+                        }
+                        db.posDao().insertTransactionItems(itemEntities)
                     }
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
+                Log.d(TAG, "Sales History mirrored: ${serverTransactions.size} transactions.")
+            } else {
+                Log.d(TAG, "Sales History mirrored: Server empty, local cleared.")
             }
 
+            Log.d(TAG, "--- SYNC COMPLETED SUCCESSFULLY ---")
+
         } catch (e: Exception) {
+            Log.e(TAG, "SYNC ERROR: ${e.message}", e)
             e.printStackTrace()
         }
     }
 
-    suspend fun getTransactionItems(txId: String): List<TransactionItemEntity> {
-        return db.posDao().getItemsForTransaction(txId)
-    }
+    suspend fun getTransactionItems(txId: String) = db.posDao().getItemsForTransaction(txId)
     fun getSalesTotal(start: Long, end: Long) = db.posDao().getSalesTotal(start, end)
     fun getTxCount(start: Long, end: Long) = db.posDao().getTxCount(start, end)
 }

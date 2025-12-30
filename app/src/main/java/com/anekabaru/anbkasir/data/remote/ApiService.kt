@@ -1,40 +1,41 @@
 package com.anekabaru.anbkasir.data.remote
 
-import com.anekabaru.anbkasir.data.*
+import com.anekabaru.anbkasir.data.ProductEntity
+import com.anekabaru.anbkasir.data.SupplierEntity
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
 import retrofit2.http.POST
-import retrofit2.http.DELETE
 import retrofit2.http.Path
 
 interface ApiService {
-    // Products
+
+    // --- PRODUCTS ---
     @GET("api/products")
     suspend fun getProducts(): List<ProductEntity>
 
     @POST("api/products/sync")
     suspend fun pushProducts(@Body products: List<ProductEntity>): SyncResponse
 
-    // NEW: Delete Product
     @DELETE("api/products/{id}")
     suspend fun deleteProduct(@Path("id") id: String): SyncResponse
 
-    // Transactions
+    // --- TRANSACTIONS ---
     @POST("api/transactions/sync")
     suspend fun pushTransactions(@Body transactions: List<TransactionSyncPayload>): SyncResponse
 
-    // NEW: Get History (Optional if you rely on local DB, but good to have)
+    // Pastikan return type-nya adalah List<TransactionSyncPayload>, BUKAN List<TransactionEntity>
     @GET("api/transactions")
-    suspend fun getSalesHistory(): List<TransactionEntity>
+    suspend fun getSalesHistory(): List<TransactionSyncPayload>
 
-    // Suppliers
+    // --- SUPPLIERS ---
     @GET("api/suppliers")
     suspend fun getSuppliers(): List<SupplierEntity>
 
     @POST("api/suppliers/sync")
     suspend fun pushSuppliers(@Body suppliers: List<SupplierEntity>): SyncResponse
 
-    // Purchases
+    // --- PURCHASES ---
     @POST("api/purchases/sync")
     suspend fun pushPurchases(@Body purchases: List<PurchaseSyncPayload>): SyncResponse
 }

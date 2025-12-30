@@ -1,7 +1,6 @@
 package com.anekabaru.anbkasir.ui.pos
 
 import android.Manifest
-import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -27,7 +26,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -36,8 +34,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.anekabaru.anbkasir.data.ProductEntity
 import com.anekabaru.anbkasir.ui.PosViewModel
+import com.anekabaru.anbkasir.ui.components.AppSnackbar // Import komponen baru
 import com.anekabaru.anbkasir.ui.components.BarcodeScanner
 import com.anekabaru.anbkasir.ui.components.PullToRefreshLayout
+import com.anekabaru.anbkasir.ui.components.SnackbarType // Import Enum
 import com.anekabaru.anbkasir.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -56,21 +56,22 @@ fun PosScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
 
-    // [BARU] State Scanner
+    // State Scanner
     var showScanner by remember { mutableStateOf(false) }
-    // [BARU] Flag untuk mencegah double processing saat scan
     var isProcessingScan by remember { mutableStateOf(false) }
 
-    // Reset flag saat scanner dibuka kembali
     LaunchedEffect(showScanner) {
         if (showScanner) isProcessingScan = false
     }
 
-    // [BARU] Snackbar State
+    // --- CUSTOM SNACKBAR STATE ---
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    // State untuk menentukan warna snackbar (Success/Error)
+    var snackbarType by remember { mutableStateOf(SnackbarType.INFO) }
 
-    fun showFeedback(message: String) {
+    fun showFeedback(message: String, type: SnackbarType) {
+        snackbarType = type // Set tipe dulu
         scope.launch {
             snackbarHostState.currentSnackbarData?.dismiss()
             snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short, withDismissAction = true)
@@ -81,23 +82,28 @@ fun PosScreen(
         contract = ActivityResultContracts.RequestPermission()
     ) { isGranted ->
         if (isGranted) showScanner = true
-        else showFeedback("Izin kamera diperlukan")
+        else showFeedback("Izin kamera diperlukan", SnackbarType.ERROR)
     }
 
     fun onBarcodeDetected(code: String) {
-        // [PERBAIKAN] Cek apakah sedang memproses? Jika ya, hentikan agar tidak double add.
         if (isProcessingScan) return
-        isProcessingScan = true 
+        isProcessingScan = true
 
         val product = products.find { it.barcode == code }
         if (product != null) {
-            viewModel.addToCart(product)
-            showScanner = false
-            showFeedback("✅ ${product.name} ditambahkan")
+            val currentQtyInCart = cart.find { it.product.id == product.id }?.quantity ?: 0
+            if (currentQtyInCart < product.stock) {
+                viewModel.addToCart(product)
+                showScanner = false
+                showFeedback("Berhasil menambahkan ${product.name}", SnackbarType.SUCCESS)
+            } else {
+                showScanner = false
+                showFeedback("Stok ${product.name} habis!", SnackbarType.ERROR)
+            }
         } else {
             searchQuery = code
             showScanner = false
-            showFeedback("⚠️ Produk tidak ditemukan")
+            showFeedback("Produk tidak ditemukan", SnackbarType.ERROR)
         }
     }
 
@@ -120,15 +126,10 @@ fun PosScreen(
     val itemCount = cart.sumOf { it.quantity }
 
     Scaffold(
-        // [BARU] Pasang Snackbar Host
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
-                Snackbar(
-                    snackbarData = data,
-                    containerColor = BrandBlue,
-                    contentColor = White,
-                    shape = RoundedCornerShape(12.dp)
-                )
+                // Gunakan Custom AppSnackbar di sini
+                AppSnackbar(snackbarData = data, type = snackbarType)
             }
         },
         bottomBar = {
@@ -149,7 +150,7 @@ fun PosScreen(
                     ) {
                         Column {
                             Text("$itemCount Items", color = White, style = MaterialTheme.typography.labelSmall)
-                            Text("Total: Rp${"%.2f".format(total)}", color = White, style = MaterialTheme.typography.titleMedium)
+                            Text("Total: Rp${"%.0f".format(total)}", color = White, style = MaterialTheme.typography.titleMedium)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("View Cart", color = White, fontWeight = FontWeight.Bold)
@@ -191,7 +192,6 @@ fun PosScreen(
                             modifier = Modifier.fillMaxWidth(),
                             placeholder = { Text("Search or Scan...", style = MaterialTheme.typography.bodyMedium, color = TextTertiary) },
                             leadingIcon = { Icon(Icons.Default.Search, null, tint = TextTertiary, modifier = Modifier.size(20.dp)) },
-                            // [BARU] Tombol Scanner
                             trailingIcon = {
                                 IconButton(onClick = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }) {
                                     Icon(Icons.Default.QrCodeScanner, "Scan", tint = BrandBlue)
@@ -231,12 +231,31 @@ fun PosScreen(
                     ) {
                         items(filteredProducts) { product ->
                             val qtyInCart = cart.find { it.product.id == product.id }?.quantity ?: 0
+
                             ProductCardSimple(
                                 product = product,
                                 qty = qtyInCart,
-                                onAdd = { viewModel.updateCartQuantity(product.id, 1) },
+                                onAdd = {
+                                    if (qtyInCart < product.stock) {
+                                        viewModel.updateCartQuantity(product.id, 1)
+                                        // Feedback tidak perlu ditampilkan setiap kali klik + agar tidak spamming,
+                                        // tapi jika mau bisa tambahkan showFeedback("Ditambahkan", SnackbarType.SUCCESS)
+                                    } else {
+                                        // [MERAH] Stok Habis
+                                        showFeedback("Stok tidak mencukupi!", SnackbarType.ERROR)
+                                    }
+                                },
                                 onRemove = { viewModel.updateCartQuantity(product.id, -1) },
-                                onClickInitial = { viewModel.addToCart(product) }
+                                onClickInitial = {
+                                    if (qtyInCart < product.stock) {
+                                        viewModel.addToCart(product)
+                                        // [HIJAU] Berhasil
+                                        showFeedback("${product.name} masuk keranjang", SnackbarType.SUCCESS)
+                                    } else {
+                                        // [MERAH] Stok Habis
+                                        showFeedback("Stok ${product.name} habis!", SnackbarType.ERROR)
+                                    }
+                                }
                             )
                         }
                     }
@@ -245,7 +264,6 @@ fun PosScreen(
         }
     }
 
-    // [BARU] Dialog Scanner Fullscreen
     if (showScanner) {
         Dialog(onDismissRequest = { showScanner = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Surface(modifier = Modifier.fillMaxSize()) {
@@ -279,6 +297,11 @@ fun CategoryChipPOS(label: String, isSelected: Boolean, onClick: () -> Unit) {
 @Composable
 fun ProductCardSimple(product: ProductEntity, qty: Int, onAdd: () -> Unit, onRemove: () -> Unit, onClickInitial: () -> Unit) {
     val isSelected = qty > 0
+
+    val defaultUnit = product.unitPrices.entries.find { it.value == product.sellPrice }?.key
+        ?: product.unitPrices.keys.firstOrNull()
+        ?: "Pcs"
+
     Card(
         modifier = Modifier.fillMaxWidth().height(150.dp).clickable(enabled = !isSelected) { onClickInitial() },
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -300,7 +323,7 @@ fun ProductCardSimple(product: ProductEntity, qty: Int, onAdd: () -> Unit, onRem
                     Surface(modifier = Modifier.size(28.dp).clickable { onAdd() }, shape = RoundedCornerShape(8.dp), color = BrandGreen) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Add, null, tint = White, modifier = Modifier.size(16.dp)) } }
                 }
             } else {
-                Text("Rp${product.sellPrice}", style = MaterialTheme.typography.titleMedium, color = BrandGreen)
+                Text("Rp${"%.0f".format(product.sellPrice)} / $defaultUnit", style = MaterialTheme.typography.titleMedium, color = BrandGreen)
             }
         }
     }

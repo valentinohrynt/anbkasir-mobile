@@ -2,7 +2,7 @@ package com.anekabaru.anbkasir.ui.admin
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.items // <--- IMPORT WAJIB
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.anekabaru.anbkasir.data.TransactionItemEntity
 import com.anekabaru.anbkasir.ui.PosViewModel
@@ -28,7 +29,7 @@ fun TransactionDetailScreen(
     onBack: () -> Unit
 ) {
     val transaction = viewModel.selectedTransaction
-    val items = viewModel.selectedTransactionItems
+    val txItems = viewModel.selectedTransactionItems
 
     if (transaction == null) {
         onBack()
@@ -50,6 +51,7 @@ fun TransactionDetailScreen(
         containerColor = BackgroundApp
     ) { padding ->
         Column(modifier = Modifier.padding(padding).padding(20.dp)) {
+            // --- HEADER TRANSAKSI ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = White),
                 shape = RoundedCornerShape(12.dp),
@@ -85,34 +87,52 @@ fun TransactionDetailScreen(
             Text("Items Purchased", style = MaterialTheme.typography.titleMedium, color = TextPrimary)
             Spacer(modifier = Modifier.height(8.dp))
 
+            // --- LIST ITEM BARANG ---
             LazyColumn(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(items) { item ->
+                items(txItems) { item ->
                     TransactionItemRow(item)
                 }
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Surface(
-                color = White,
+            // --- [UPDATE] SUMMARY & PAYMENT DETAILS ---
+            // Mengganti Surface biasa dengan Card yang lebih informatif
+            Card(
+                colors = CardDefaults.cardColors(containerColor = White),
                 shape = RoundedCornerShape(16.dp),
-                shadowElevation = 4.dp
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(20.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text("Total Amount", color = TextSecondary, style = MaterialTheme.typography.labelSmall)
-                        Text(
-                            "Rp${"%.2f".format(transaction.totalAmount)}",
-                            color = BrandGreen,
-                            style = MaterialTheme.typography.headlineSmall
-                        )
+                Column(modifier = Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    // Info Diskon (Jika ada)
+                    if (transaction.discount > 0) {
+                        Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                            Text("Discount", style = MaterialTheme.typography.bodyMedium, color = BrandOrange)
+                            Text("-Rp${"%.0f".format(transaction.discount)}", style = MaterialTheme.typography.bodyMedium, color = BrandOrange)
+                        }
+                    }
+
+                    // Grand Total
+                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        Text("Grand Total", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        // Menggunakan %.0f agar konsisten (tanpa koma desimal)
+                        Text("Rp${"%.0f".format(transaction.totalAmount)}", style = MaterialTheme.typography.headlineSmall, color = BrandGreen, fontWeight = FontWeight.Bold)
+                    }
+
+                    Divider(modifier = Modifier.padding(vertical = 8.dp), color = BorderColor)
+
+                    // Info Pembayaran & Kembalian
+                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        Text("Paid via ${transaction.paymentMethod}", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                        Text("Rp${"%.0f".format(transaction.amountPaid)}", style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
+                    }
+
+                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                        Text("Change", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
+                        Text("Rp${"%.0f".format(transaction.changeAmount)}", style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
                     }
                 }
             }
@@ -142,10 +162,11 @@ fun TransactionItemRow(item: TransactionItemEntity) {
             }
             Spacer(modifier = Modifier.width(16.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(item.productName, style = MaterialTheme.typography.titleSmall)
-                Text("@ Rp${item.priceSnapshot}", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
+                // Tampilkan Nama Barang + Satuan
+                Text("${item.productName} (${item.unit})", style = MaterialTheme.typography.titleSmall)
+                Text("@ Rp${"%.0f".format(item.priceSnapshot)}", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
             }
-            Text("Rp${item.subtotal}", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
+            Text("Rp${"%.0f".format(item.subtotal)}", style = MaterialTheme.typography.titleSmall, color = TextPrimary)
         }
     }
 }

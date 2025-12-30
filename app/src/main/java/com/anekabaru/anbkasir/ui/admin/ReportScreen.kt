@@ -55,7 +55,7 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState())
             ) {
-                // --- CUSTOM HEADER (Matches Inventory/History Style) ---
+                // --- CUSTOM HEADER ---
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -67,7 +67,6 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Left: Back Button & Title
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -95,18 +94,17 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
                             }
                         }
 
-                        // Right: Decorative Icon (Red for Reports)
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
                                 .clip(CircleShape)
-                                .background(SurfaceRed), // Red Background
+                                .background(SurfaceRed),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Default.Assessment,
                                 contentDescription = null,
-                                tint = SystemRed, // Red Icon
+                                tint = SystemRed,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -116,7 +114,6 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
                 // --- CONTENT ---
                 Column(modifier = Modifier.padding(20.dp)) {
 
-                    // Section Title
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.DateRange, null, tint = TextSecondary, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
@@ -130,10 +127,10 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    // Hero Card (Revenue)
+                    // [UPDATE] Format uang menggunakan %.0f agar rapi
                     StatCard(
                         title = "Total Revenue",
-                        value = "Rp${dailySales ?: 0.0}",
+                        value = "Rp${"%.0f".format(dailySales ?: 0.0)}",
                         icon = Icons.Default.Money,
                         color = BrandGreen,
                         isHero = true
@@ -141,7 +138,6 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
 
                     Spacer(modifier = Modifier.height(12.dp))
 
-                    // Secondary Cards
                     StatCard(
                         title = "Transactions",
                         value = "$txCount Orders",
@@ -153,8 +149,8 @@ fun ReportScreen(viewModel: PosViewModel, onBack: () -> Unit) {
 
                     val estimatedProfit = (dailySales ?: 0.0) * 0.2
                     StatCard(
-                        title = "Est. Gross Profit",
-                        value = "Rp${"%.2f".format(estimatedProfit)}",
+                        title = "Est. Gross Profit (20%)",
+                        value = "Rp${"%.0f".format(estimatedProfit)}", // [UPDATE] Format Rapi
                         icon = Icons.AutoMirrored.Filled.TrendingUp,
                         color = BrandOrange
                     )
@@ -174,7 +170,7 @@ fun StatCard(
 ) {
     Card(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp), // Consistent 16dp
+        shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
@@ -184,7 +180,7 @@ fun StatCard(
         ) {
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = color.copy(alpha = 0.1f), // Soft background matching the icon color
+                color = color.copy(alpha = 0.1f),
                 modifier = Modifier.size(if (isHero) 56.dp else 48.dp)
             ) {
                 Box(contentAlignment = Alignment.Center) {

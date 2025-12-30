@@ -17,7 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Warning // [BARU]
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Inventory2
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -95,12 +95,14 @@ fun InventoryScreen(
         },
         containerColor = BackgroundApp
     ) { padding ->
+        // [PENTING] Menggunakan PullToRefreshLayout yang tadi Anda buat
         PullToRefreshLayout(
             isRefreshing = isSyncing,
             onRefresh = { viewModel.sync() },
             modifier = Modifier.padding(padding)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
+                // Header & Search
                 Column(modifier = Modifier.fillMaxWidth().background(White)) {
                     Column(modifier = Modifier.padding(top = 20.dp, start = 20.dp, end = 20.dp, bottom = 12.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -112,6 +114,7 @@ fun InventoryScreen(
                                 }
                             }
                             Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(SurfaceBlue), contentAlignment = Alignment.Center) {
+                                // Jika Inventory2 error (butuh library extended), ganti Icons.Default.Inventory
                                 Icon(Icons.Outlined.Inventory2, null, tint = BrandBlue, modifier = Modifier.size(20.dp))
                             }
                         }
@@ -190,13 +193,17 @@ fun CategoryChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
 
 @Composable
 fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
-    // [BARU] LOGIKA LOW STOCK
     val isLowStock = product.stock <= product.wholesaleThreshold
+
+    // [IMPROVEMENT] Mencari nama unit dari harga default (sellPrice)
+    // Jika tidak ketemu di map, default ke "Pcs" atau ambil key pertama
+    val defaultUnit = product.unitPrices.entries.find { it.value == product.sellPrice }?.key
+        ?: product.unitPrices.keys.firstOrNull()
+        ?: "Pcs"
 
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
         colors = CardDefaults.cardColors(
-            // Ganti warna background jadi merah tipis jika stok sedikit
             containerColor = if (isLowStock) Color(0xFFFFF0F0) else White
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -215,13 +222,17 @@ fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
                     Surface(color = SurfaceBlue, shape = RoundedCornerShape(6.dp)) {
                         Text(product.category, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = BrandBlue)
                     }
-                    Text("Rp${product.sellPrice}", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold), color = BrandGreen)
+                    // Tampilkan Harga + Satuan
+                    Text(
+                        "Rp${"%.0f".format(product.sellPrice)} / $defaultUnit",
+                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                        color = BrandGreen
+                    )
                 }
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("Stock", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
 
-                // [BARU] Tampilan Stok dengan Warning Icon
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (isLowStock) {
                         Icon(Icons.Default.Warning, contentDescription = "Low", tint = SystemRed, modifier = Modifier.size(14.dp))

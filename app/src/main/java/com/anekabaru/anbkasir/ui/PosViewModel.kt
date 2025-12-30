@@ -15,12 +15,15 @@ import java.util.Date
 import java.util.Locale
 import javax.inject.Inject
 
+// [MODIFIKASI] CartItem sekarang menyimpan selectedUnit
 data class CartItem(
     val product: ProductEntity,
     val quantity: Int,
-    val manualPrice: Double? = null
+    val selectedUnit: String
 ) {
-    val activePrice: Double get() = manualPrice ?: if (quantity >= product.wholesaleThreshold) product.wholesalePrice else product.sellPrice
+    // Harga aktif diambil dari map unitPrices berdasarkan unit yang dipilih
+    // Jika tidak ada di map, fallback ke sellPrice utama
+    val activePrice: Double get() = product.unitPrices[selectedUnit] ?: product.sellPrice
     val total: Double get() = activePrice * quantity
 }
 
@@ -64,7 +67,7 @@ class PosViewModel @Inject constructor(
     private val _isSyncing = MutableStateFlow(false)
     val isSyncing = _isSyncing.asStateFlow()
 
-    // --- [BARU] STATE DISKON ---
+    // --- STATE DISKON ---
     var discountAmount by mutableStateOf(0.0)
         private set
 
@@ -72,7 +75,7 @@ class PosViewModel @Inject constructor(
         discountAmount = amount
     }
 
-    // [MODIFIKASI] Grand Total dikurangi diskon
+    // Grand Total dikurangi diskon
     val grandTotal = _cart.combine(snapshotFlow { discountAmount }) { cartItems, discount ->
         val subtotal = cartItems.sumOf { it.total }
         (subtotal - discount).coerceAtLeast(0.0)
@@ -81,12 +84,30 @@ class PosViewModel @Inject constructor(
     private val _receiptText = MutableStateFlow<String?>(null)
     val receiptText = _receiptText.asStateFlow()
 
+    // [MODIFIKASI] Add to Cart dengan logika Default Unit
     fun addToCart(p: ProductEntity) {
         val list = _cart.value.toMutableList()
         val idx = list.indexOfFirst { it.product.id == p.id }
-        if (idx != -1) list[idx] = list[idx].copy(quantity = list[idx].quantity + 1)
-        else list.add(CartItem(p, 1))
+
+        if (idx != -1) {
+            // Jika produk sudah ada, tambah qty (unit tetap sama)
+            list[idx] = list[idx].copy(quantity = list[idx].quantity + 1)
+        } else {
+            // Jika baru, ambil unit pertama sebagai default, atau "Pcs" jika kosong
+            val defaultUnit = p.unitPrices.keys.firstOrNull() ?: "Pcs"
+            list.add(CartItem(p, 1, defaultUnit))
+        }
         _cart.value = list
+    }
+
+    // [BARU] Fungsi untuk mengubah satuan item di keranjang
+    fun changeCartItemUnit(productId: String, newUnit: String) {
+        val list = _cart.value.toMutableList()
+        val idx = list.indexOfFirst { it.product.id == productId }
+        if (idx != -1) {
+            list[idx] = list[idx].copy(selectedUnit = newUnit)
+            _cart.value = list
+        }
     }
 
     fun updateCartQuantity(productId: String, delta: Int) {
@@ -106,17 +127,40 @@ class PosViewModel @Inject constructor(
 
     fun closeReceipt() { _receiptText.value = null }
 
-    // ... (Fungsi CRUD Product & Sync sama seperti sebelumnya) ...
-    fun addProduct(name: String, buy: Double, sell: Double, wholesale: Double, thresh: Int, stock: Int, cat: String, bar: String) {
+    fun addProduct(
+        name: String,
+        buy: Double,
+        stock: Int,
+        cat: String,
+        bar: String,
+        unitPrices: Map<String, Double>,
+        wholesalePrice: Double = 0.0,     // Parameter baru
+        wholesaleThreshold: Int = 0       // Parameter baru
+    ) {
         viewModelScope.launch {
-            repository.saveProduct(ProductEntity(name=name, buyPrice=buy, sellPrice=sell, wholesalePrice=wholesale, wholesaleThreshold=thresh, stock=stock, category=cat, barcode=bar))
+            // Set sellPrice default ke harga unit pertama
+            val defaultPrice = unitPrices.values.firstOrNull() ?: 0.0
+
+            repository.saveProduct(
+                ProductEntity(
+                    name = name,
+                    buyPrice = buy,
+                    sellPrice = defaultPrice,
+                    wholesalePrice = wholesalePrice, // Gunakan parameter
+                    wholesaleThreshold = wholesaleThreshold, // Gunakan parameter
+                    stock = stock,
+                    category = cat,
+                    barcode = bar,
+                    unitPrices = unitPrices
+                )
+            )
         }
     }
 
-    fun updateProduct(id: String, name: String, buy: Double, sell: Double, wholesale: Double, thresh: Int, stock: Int, cat: String, bar: String) {
+    // [MODIFIKASI] Update Product menerima object entity utuh
+    fun updateProduct(product: ProductEntity) {
         viewModelScope.launch {
-            val p = ProductEntity(id=id, name=name, buyPrice=buy, sellPrice=sell, wholesalePrice=wholesale, wholesaleThreshold=thresh, stock=stock, category=cat, barcode=bar)
-            repository.updateProduct(p)
+            repository.updateProduct(product)
         }
     }
 
@@ -141,6 +185,19 @@ class PosViewModel @Inject constructor(
 
     fun getSalesTotal(start: Long, end: Long) = repository.getSalesTotal(start, end)
     fun getTxCount(start: Long, end: Long) = repository.getTxCount(start, end)
+
+    // Helper untuk edit produk (mengambil data produk by ID secara sync/async sederhana)
+    suspend fun getProductById(id: Int): ProductEntity? {
+        // Karena di Repository getAllProducts berupa Flow, kita filter dari value terakhir products
+        // Catatan: id di Entity adalah String UUID, tapi di UI mungkin ada yang kirim Int (perlu disesuaikan jika masih pakai Int di UI lama)
+        // Di sini saya asumsikan flow 'products' sudah terisi.
+        // Untuk amannya sebaiknya ambil by ID langsung dari DAO jika perlu, tapi filter list juga cukup untuk skala kecil.
+        return products.value.find { it.id == id.toString() } // Sesuaikan jika ID integer
+    }
+    // Overload untuk String ID (rekomendasi)
+    suspend fun getProductById(id: String): ProductEntity? {
+        return products.value.find { it.id == id }
+    }
 
     var selectedProduct by mutableStateOf<ProductEntity?>(null)
         private set
@@ -187,7 +244,7 @@ class PosViewModel @Inject constructor(
         payMethod: String,
         paid: Double,
         change: Double,
-        discount: Double // Param baru
+        discount: Double
     ): String {
         val sb = StringBuilder()
         val dateStr = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(date))
@@ -206,7 +263,7 @@ class PosViewModel @Inject constructor(
         }
 
         sb.append(center("TOKO ANEKA BARU"))
-        sb.append(center("Jl. Raya No. 123"))
+        sb.append(center("Kebaman - Srono"))
         sb.append(center("Telp: 0812-3456-7890"))
         sb.append(line())
         sb.append("No: ${txId.take(8)}\n")
@@ -216,9 +273,11 @@ class PosViewModel @Inject constructor(
 
         var subTotalCalc = 0.0
         items.forEach { item ->
-            val totalItem = item.activePrice * item.quantity
+            // activePrice sudah handle harga per unit
+            val totalItem = item.total
             subTotalCalc += totalItem
-            sb.append("${item.product.name}\n")
+            // Tampilkan Nama + Unit
+            sb.append("${item.product.name} (${item.selectedUnit})\n")
             val qtyPrice = "${item.quantity} x ${"%.0f".format(item.activePrice)}"
             val subTotalStr = "%.0f".format(totalItem)
             val spaces = 32 - qtyPrice.length - subTotalStr.length
@@ -252,7 +311,7 @@ class PosViewModel @Inject constructor(
         val currentItems = _cart.value
         val txId = java.util.UUID.randomUUID().toString()
         val now = System.currentTimeMillis()
-        val currentDiscount = discountAmount // Ambil nilai diskon saat ini
+        val currentDiscount = discountAmount
 
         viewModelScope.launch {
             repository.saveTransaction(
@@ -262,10 +321,10 @@ class PosViewModel @Inject constructor(
                 paymentMethod = paymentMethod,
                 amountPaid = paid,
                 changeAmount = changeAmount,
-                discount = currentDiscount // [BARU] Kirim ke repository
+                discount = currentDiscount
             )
 
-            // Generate receipt (kode receipt tetap sama karena sudah ada parameter discount)
+            // Generate receipt
             val receipt = generateReceipt(txId, now, currentUserName, currentItems, total, paymentMethod, paid, changeAmount, currentDiscount)
             _receiptText.value = receipt
 

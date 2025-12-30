@@ -18,9 +18,21 @@ interface PosDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertProducts(products: List<ProductEntity>)
 
-    // NEW: Update specific product fields
-    @Query("UPDATE products SET name=:n, buyPrice=:b, sellPrice=:s, wholesalePrice=:w, wholesaleThreshold=:t, stock=:st, category=:c, barcode=:bar, updatedAt=:u, isSynced=0 WHERE id=:id")
-    suspend fun updateProduct(id: String, n: String, b: Double, s: Double, w: Double, t: Int, st: Int, c: String, bar: String?, u: Long)
+    // [REVISI] Menambahkan parameter 'up' (unitPrices) ke dalam Query UPDATE
+    @Query("UPDATE products SET name=:n, buyPrice=:b, sellPrice=:s, wholesalePrice=:w, wholesaleThreshold=:t, stock=:st, category=:c, barcode=:bar, unitPrices=:up, updatedAt=:u, isSynced=0 WHERE id=:id")
+    suspend fun updateProduct(
+        id: String,
+        n: String,
+        b: Double,
+        s: Double,
+        w: Double,
+        t: Int,
+        st: Int,
+        c: String,
+        bar: String?,
+        up: Map<String, Double>, // Parameter Baru
+        u: Long
+    )
 
     // NEW: Delete product
     @Query("DELETE FROM products WHERE id = :id")
@@ -87,4 +99,16 @@ interface PosDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransactions(transactions: List<TransactionEntity>)
+
+    @Query("DELETE FROM products WHERE isSynced = 1")
+    suspend fun deleteSyncedProducts()
+
+    @Query("DELETE FROM suppliers WHERE isSynced = 1")
+    suspend fun deleteSyncedSuppliers()
+
+    @Query("DELETE FROM transactions WHERE isSynced = 1")
+    suspend fun deleteSyncedTransactions()
+
+    @Query("DELETE FROM transaction_items WHERE transactionId IN (SELECT id FROM transactions WHERE isSynced = 1)")
+    suspend fun deleteSyncedTransactionItems()
 }
