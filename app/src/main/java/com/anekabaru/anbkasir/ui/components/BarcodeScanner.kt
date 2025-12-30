@@ -22,7 +22,6 @@ import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import com.google.mlkit.vision.barcode.BarcodeScanning
-import com.google.mlkit.vision.barcode.common.Barcode
 import com.google.mlkit.vision.common.InputImage
 import java.util.concurrent.Executors
 
@@ -34,6 +33,10 @@ fun BarcodeScanner(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+
+    // Menggunakan remember agar instance provider tetap sama selama recomposition
+    // dan bisa diakses oleh DisposableEffect untuk pembersihan.
+    val cameraProviderFuture = remember { ProcessCameraProvider.getInstance(context) }
 
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         AndroidView(
@@ -48,7 +51,6 @@ fun BarcodeScanner(
                 }
 
                 val cameraExecutor = Executors.newSingleThreadExecutor()
-                val cameraProviderFuture = ProcessCameraProvider.getInstance(ctx)
 
                 cameraProviderFuture.addListener({
                     val cameraProvider = cameraProviderFuture.get()
@@ -105,6 +107,18 @@ fun BarcodeScanner(
                 previewView
             }
         )
+
+        // [PERBAIKAN PENTING] Membersihkan kamera saat composable dihancurkan (dialog ditutup)
+        DisposableEffect(Unit) {
+            onDispose {
+                try {
+                    val cameraProvider = cameraProviderFuture.get()
+                    cameraProvider.unbindAll() // Hentikan kamera!
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+            }
+        }
 
         // Close Button
         IconButton(
