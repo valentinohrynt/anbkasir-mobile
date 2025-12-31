@@ -5,19 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -30,30 +18,8 @@ import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -71,18 +37,11 @@ import com.anekabaru.anbkasir.ui.components.AppSnackbar
 import com.anekabaru.anbkasir.ui.components.BarcodeScanner
 import com.anekabaru.anbkasir.ui.components.PullToRefreshLayout
 import com.anekabaru.anbkasir.ui.components.SnackbarType
-import com.anekabaru.anbkasir.ui.theme.BackgroundApp
-import com.anekabaru.anbkasir.ui.theme.BorderColor
-import com.anekabaru.anbkasir.ui.theme.BrandBlue
-import com.anekabaru.anbkasir.ui.theme.BrandGreen
-import com.anekabaru.anbkasir.ui.theme.SurfaceBlue
-import com.anekabaru.anbkasir.ui.theme.SurfaceRed
-import com.anekabaru.anbkasir.ui.theme.SystemRed
-import com.anekabaru.anbkasir.ui.theme.TextPrimary
-import com.anekabaru.anbkasir.ui.theme.TextSecondary
-import com.anekabaru.anbkasir.ui.theme.TextTertiary
-import com.anekabaru.anbkasir.ui.theme.White
+import com.anekabaru.anbkasir.ui.components.RupiahText
+import com.anekabaru.anbkasir.ui.theme.*
+import com.anekabaru.anbkasir.util.toRupiah
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -92,18 +51,14 @@ fun InventoryScreen(
     onNavigateToDetail: () -> Unit,
     onNavigateToForm: () -> Unit
 ) {
-    LocalContext.current
     val products by viewModel.products.collectAsState()
     val isSyncing by viewModel.isSyncing.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
-    // [BARU] State untuk filter stok menipis
     var showLowStockOnly by remember { mutableStateOf(false) }
-
     var showScanner by remember { mutableStateOf(false) }
 
-    // --- SNACKBAR SETUP ---
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var snackbarType by remember { mutableStateOf(SnackbarType.INFO) }
@@ -133,7 +88,6 @@ fun InventoryScreen(
         products.map { it.category }.distinct().sorted()
     }
 
-    // [UPDATE LOGIC FILTER]
     val filteredProducts = remember(products, searchQuery, selectedCategory, showLowStockOnly) {
         products.filter { product ->
             val matchesSearch = if (searchQuery.isBlank()) true else {
@@ -142,10 +96,8 @@ fun InventoryScreen(
                         (product.barcode ?: "").contains(searchQuery)
             }
             val matchesCategory = selectedCategory == null || product.category == selectedCategory
-
-            // Logic Low Stock: Stok <= Threshold atau <= 0
-            val isLowStock = product.stock <= 0
-            val matchesStock = if (showLowStockOnly) isLowStock else true
+            val isLow = product.stock <= product.wholesaleThreshold
+            val matchesStock = if (showLowStockOnly) isLow else true
 
             matchesSearch && matchesCategory && matchesStock
         }
@@ -174,7 +126,6 @@ fun InventoryScreen(
             modifier = Modifier.padding(padding)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
-                // Header & Search
                 Column(modifier = Modifier.fillMaxWidth().background(White)) {
                     Column(modifier = Modifier.padding(top = 20.dp, start = 20.dp, end = 20.dp, bottom = 12.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -210,13 +161,11 @@ fun InventoryScreen(
                         )
                     }
 
-                    // [UPDATE] Filter Chips Row
                     LazyRow(
                         modifier = Modifier.fillMaxWidth(),
                         contentPadding = PaddingValues(horizontal = 20.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        // 1. Chip All (Reset semua filter)
                         item {
                             CategoryChip(
                                 label = "All",
@@ -227,8 +176,6 @@ fun InventoryScreen(
                                 }
                             )
                         }
-
-                        // 2. Chip KHUSUS LOW STOCK (Merah)
                         item {
                             FilterChip(
                                 selected = showLowStockOnly,
@@ -241,23 +188,13 @@ fun InventoryScreen(
                                     }
                                 },
                                 colors = FilterChipDefaults.filterChipColors(
-                                    selectedContainerColor = SystemRed,
-                                    selectedLabelColor = White,
-                                    selectedLeadingIconColor = White,
-                                    containerColor = SurfaceRed,
-                                    labelColor = SystemRed,
-                                    iconColor = SystemRed
+                                    selectedContainerColor = SystemRed, selectedLabelColor = White, selectedLeadingIconColor = White,
+                                    containerColor = SurfaceRed, labelColor = SystemRed, iconColor = SystemRed
                                 ),
-                                border = FilterChipDefaults.filterChipBorder(
-                                    enabled = true,
-                                    selected = showLowStockOnly,
-                                    borderColor = SystemRed
-                                ),
+                                border = FilterChipDefaults.filterChipBorder(enabled = true, selected = showLowStockOnly, borderColor = SystemRed),
                                 shape = RoundedCornerShape(20.dp)
                             )
                         }
-
-                        // 3. Chip Kategori
                         items(categories) { category ->
                             CategoryChip(
                                 label = category,
@@ -287,7 +224,6 @@ fun InventoryScreen(
                                 onNavigateToDetail()
                             })
                         }
-                        item { Spacer(modifier = Modifier.height(8.dp)) }
                     }
                 }
             }
@@ -318,16 +254,13 @@ fun CategoryChip(label: String, isSelected: Boolean, onClick: () -> Unit) {
 @Composable
 fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
     val isLowStock = product.stock <= product.wholesaleThreshold
-
-    val defaultUnit = product.unitPrices.entries.find { it.value == product.sellPrice }?.key
+    val defaultUnit = product.unitPrices.entries.find { abs(it.value - product.sellPrice) < 0.001 }?.key
         ?: product.unitPrices.keys.firstOrNull()
         ?: "Pcs"
 
     Card(
         modifier = Modifier.fillMaxWidth().clickable { onClick() },
-        colors = CardDefaults.cardColors(
-            containerColor = if (isLowStock) Color(0xFFFFF0F0) else White
-        ),
+        colors = CardDefaults.cardColors(containerColor = if (isLowStock) Color(0xFFFFF0F0) else White),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         shape = RoundedCornerShape(12.dp),
         border = if (isLowStock) androidx.compose.foundation.BorderStroke(1.dp, SystemRed.copy(alpha = 0.5f)) else null
@@ -344,27 +277,19 @@ fun CompactProductCard(product: ProductEntity, onClick: () -> Unit) {
                     Surface(color = SurfaceBlue, shape = RoundedCornerShape(6.dp)) {
                         Text(product.category, modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp), style = MaterialTheme.typography.labelSmall, color = BrandBlue)
                     }
-                    Text(
-                        "Rp${"%.0f".format(product.sellPrice)} / $defaultUnit",
-                        style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
-                        color = BrandGreen
-                    )
+                    Row {
+                        RupiahText(amount = product.sellPrice, style = MaterialTheme.typography.labelMedium, fontWeight = FontWeight.Bold, color = BrandGreen)
+                        Text(" / $defaultUnit", style = MaterialTheme.typography.labelMedium, color = BrandGreen)
+                    }
                 }
             }
             Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("Stock", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
-
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (isLowStock) {
-                        Icon(Icons.Default.Warning, contentDescription = "Low", tint = SystemRed, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                    }
+                    if (isLowStock) Icon(Icons.Default.Warning, null, tint = SystemRed, modifier = Modifier.size(14.dp))
                     Text("${product.stock}", style = MaterialTheme.typography.titleMedium, color = if(isLowStock) SystemRed else TextPrimary, fontWeight = FontWeight.Bold)
                 }
-
-                if (isLowStock) {
-                    Text("Restock!", style = MaterialTheme.typography.labelSmall, color = SystemRed, fontSize = 10.sp)
-                }
+                if (isLowStock) Text("Restock!", style = MaterialTheme.typography.labelSmall, color = SystemRed, fontSize = 10.sp)
             }
         }
     }

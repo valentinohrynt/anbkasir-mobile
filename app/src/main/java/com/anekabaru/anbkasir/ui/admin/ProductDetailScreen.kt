@@ -22,7 +22,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.anekabaru.anbkasir.ui.PosViewModel
+import com.anekabaru.anbkasir.ui.components.RupiahText
 import com.anekabaru.anbkasir.ui.theme.*
+import com.anekabaru.anbkasir.util.toRupiah
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -38,7 +40,7 @@ fun ProductDetailScreen(
     var showDeleteDialog by remember { mutableStateOf(false) }
 
     if (product == null) {
-        onBack()
+        LaunchedEffect(Unit) { onBack() }
         return
     }
 
@@ -46,12 +48,7 @@ fun ProductDetailScreen(
         bottomBar = {
             Surface(shadowElevation = 8.dp, color = White, modifier = Modifier.fillMaxWidth()) {
                 Box(modifier = Modifier.padding(16.dp)) {
-                    Button(
-                        onClick = onEdit,
-                        colors = ButtonDefaults.buttonColors(containerColor = BrandBlue),
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
+                    Button(onClick = onEdit, colors = ButtonDefaults.buttonColors(containerColor = BrandBlue), modifier = Modifier.fillMaxWidth().height(52.dp), shape = RoundedCornerShape(12.dp)) {
                         Icon(Icons.Default.Edit, null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(8.dp))
                         Text("Edit Product", style = MaterialTheme.typography.titleMedium)
@@ -90,17 +87,15 @@ fun ProductDetailScreen(
 
             Column(modifier = Modifier.verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 InfoSection(title = "Pricing Information", icon = Icons.Outlined.Payments, iconColor = BrandGreen) {
-                    CompactInfoCard(label = "Buy Price (Modal)", value = "Rp${"%.0f".format(product.buyPrice)}", modifier = Modifier.fillMaxWidth())
+                    CompactInfoCard(label = "Buy Price (Modal)", value = product.buyPrice.toRupiah(), modifier = Modifier.fillMaxWidth())
                     Spacer(modifier = Modifier.height(8.dp))
                     Divider(color = BorderColor)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text("Selling Units", style = MaterialTheme.typography.labelMedium, color = TextSecondary)
-                    if (product.unitPrices.isNotEmpty()) {
-                        product.unitPrices.forEach { (unit, price) ->
-                            Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                                Text(unit, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
-                                Text("Rp${"%.0f".format(price)}", style = MaterialTheme.typography.titleSmall, color = BrandGreen, fontWeight = FontWeight.Bold)
-                            }
+                    product.unitPrices.forEach { (unit, price) ->
+                        Row(modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                            Text(unit, style = MaterialTheme.typography.bodyMedium, color = TextPrimary)
+                            RupiahText(amount = price, style = MaterialTheme.typography.titleSmall, color = BrandGreen, fontWeight = FontWeight.Bold)
                         }
                     }
                     if (product.wholesalePrice > 0) {
@@ -111,18 +106,14 @@ fun ProductDetailScreen(
                                     Text("Grosir / Wholesale (Eceran)", style = MaterialTheme.typography.labelSmall, color = TextSecondary)
                                     Text("Min. Qty: ${product.wholesaleThreshold}", style = MaterialTheme.typography.bodySmall, color = TextTertiary)
                                 }
-                                Text("Rp${"%.0f".format(product.wholesalePrice)}", style = MaterialTheme.typography.titleSmall, color = BrandBlue, fontWeight = FontWeight.Bold)
+                                RupiahText(amount = product.wholesalePrice, style = MaterialTheme.typography.titleSmall, color = BrandBlue, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
                 }
 
                 InfoSection(title = "Inventory Status", icon = Icons.Outlined.Inventory, iconColor = BrandBlue) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (product.stock <= 5) SurfaceRed else SurfaceGreen).padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
+                    Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (product.stock <= 5) SurfaceRed else SurfaceGreen).padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                         Column {
                             Text("Current Stock", style = MaterialTheme.typography.labelSmall, color = TextTertiary)
                             Text("${product.stock}", style = MaterialTheme.typography.headlineSmall, color = if (product.stock <= 5) SystemRed else BrandGreen, fontWeight = FontWeight.Bold)
@@ -133,15 +124,8 @@ fun ProductDetailScreen(
                             }
                         }
                     }
-                    // Menampilkan Tanggal Update
-                    Text(
-                        "Last Updated: ${SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(product.updatedAt))}",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TextTertiary,
-                        modifier = Modifier.padding(top = 8.dp)
-                    )
+                    Text("Last Updated: ${SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(product.updatedAt))}", style = MaterialTheme.typography.labelSmall, color = TextTertiary, modifier = Modifier.padding(top = 8.dp))
                 }
-                Spacer(modifier = Modifier.height(40.dp))
             }
         }
     }
@@ -151,13 +135,12 @@ fun ProductDetailScreen(
             onDismissRequest = { showDeleteDialog = false },
             icon = { Icon(Icons.Default.Delete, null, tint = SystemRed) },
             title = { Text("Hapus Produk?", fontWeight = FontWeight.Bold) },
-            text = { Text("Apakah Anda yakin ingin menghapus '${product.name}'? \n\nTindakan ini tidak dapat dibatalkan.", textAlign = androidx.compose.ui.text.style.TextAlign.Center) },
+            text = { Text("Apakah Anda yakin ingin menghapus '${product.name}'?", textAlign = androidx.compose.ui.text.style.TextAlign.Center) },
             confirmButton = {
                 Button(onClick = { viewModel.deleteProduct(product.id); showDeleteDialog = false; onBack() }, colors = ButtonDefaults.buttonColors(containerColor = SystemRed)) { Text("Ya, Hapus") }
             },
             dismissButton = { TextButton(onClick = { showDeleteDialog = false }) { Text("Batal", color = TextSecondary) } },
-            containerColor = White,
-            shape = RoundedCornerShape(16.dp)
+            containerColor = White, shape = RoundedCornerShape(16.dp)
         )
     }
 }
@@ -168,7 +151,7 @@ fun InfoSection(title: String, icon: ImageVector, iconColor: Color, content: @Co
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Box(modifier = Modifier.size(32.dp).clip(RoundedCornerShape(8.dp)).background(iconColor.copy(alpha = 0.1f)), contentAlignment = Alignment.Center) {
-                    Icon(imageVector = icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp))
+                    Icon(icon, null, tint = iconColor, modifier = Modifier.size(18.dp))
                 }
                 Text(title, style = MaterialTheme.typography.titleMedium, color = TextPrimary)
             }

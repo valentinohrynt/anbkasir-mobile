@@ -10,6 +10,7 @@ import com.anekabaru.anbkasir.data.PosRepository
 import com.anekabaru.anbkasir.data.ProductEntity
 import com.anekabaru.anbkasir.data.TransactionEntity
 import com.anekabaru.anbkasir.data.TransactionItemEntity
+import com.anekabaru.anbkasir.util.toRupiah
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,6 +23,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
+import kotlin.math.abs
 
 data class CartItem(
     val product: ProductEntity,
@@ -87,10 +89,9 @@ class PosViewModel @Inject constructor(
     private val _receiptText = MutableStateFlow<String?>(null)
     val receiptText = _receiptText.asStateFlow()
 
-    // Logika Anti-Rugi (Grosir hanya untuk Base Unit)
     private fun calculatePrice(product: ProductEntity, qty: Int, unit: String): Double {
         val normalUnitPrice = product.unitPrices[unit] ?: product.sellPrice
-        val isBaseUnit = (normalUnitPrice == product.sellPrice)
+        val isBaseUnit = abs(normalUnitPrice - product.sellPrice) < 0.001
 
         val isWholesaleEligible = (
                 qty >= product.wholesaleThreshold &&
@@ -121,8 +122,7 @@ class PosViewModel @Inject constructor(
                 list[idx] = existing.copy(quantity = newQty, activePrice = newPrice)
             }
         } else {
-            // Ambil unit yang harganya sama dengan sellPrice sebagai default, atau unit pertama
-            val defaultUnit = p.unitPrices.entries.find { it.value == p.sellPrice }?.key
+            val defaultUnit = p.unitPrices.entries.find { abs(it.value - p.sellPrice) < 0.001 }?.key
                 ?: p.unitPrices.keys.firstOrNull()
                 ?: "Pcs"
             val price = calculatePrice(p, 1, defaultUnit)
@@ -163,65 +163,32 @@ class PosViewModel @Inject constructor(
 
     fun closeReceipt() { _receiptText.value = null }
 
-    fun addProduct(
-        name: String,
-        buy: Double,
-        stock: Int,
-        cat: String,
-        bar: String,
-        unitPrices: Map<String, Double>,
-        wholesalePrice: Double = 0.0,
-        wholesaleThreshold: Int = 0
-    ) {
+    fun addProduct(name: String, buy: Double, stock: Int, cat: String, bar: String, unitPrices: Map<String, Double>, wholesalePrice: Double = 0.0, wholesaleThreshold: Int = 0) {
         viewModelScope.launch {
             val defaultPrice = unitPrices.values.firstOrNull() ?: 0.0
-            repository.saveProduct(
-                ProductEntity(
-                    name = name,
-                    buyPrice = buy,
-                    sellPrice = defaultPrice,
-                    wholesalePrice = wholesalePrice,
-                    wholesaleThreshold = wholesaleThreshold,
-                    stock = stock,
-                    category = cat,
-                    barcode = bar,
-                    unitPrices = unitPrices
-                )
-            )
+            repository.saveProduct(ProductEntity(name = name, buyPrice = buy, sellPrice = defaultPrice, wholesalePrice = wholesalePrice, wholesaleThreshold = wholesaleThreshold, stock = stock, category = cat, barcode = bar, unitPrices = unitPrices))
         }
     }
 
     fun updateProduct(product: ProductEntity) {
-        viewModelScope.launch {
-            repository.updateProduct(product)
-        }
+        viewModelScope.launch { repository.updateProduct(product) }
     }
 
     fun deleteProduct(id: String) {
-        viewModelScope.launch {
-            repository.deleteProduct(id)
-        }
+        viewModelScope.launch { repository.deleteProduct(id) }
     }
 
     fun sync() {
         viewModelScope.launch {
             _isSyncing.value = true
-            try {
-                repository.syncData()
-            } catch (e: Exception) {
-                e.printStackTrace()
-            } finally {
-                _isSyncing.value = false
-            }
+            try { repository.syncData() } catch (e: Exception) { e.printStackTrace() } finally { _isSyncing.value = false }
         }
     }
 
     fun getSalesTotal(start: Long, end: Long) = repository.getSalesTotal(start, end)
     fun getTxCount(start: Long, end: Long) = repository.getTxCount(start, end)
 
-    suspend fun getProductById(id: String): ProductEntity? {
-        return products.value.find { it.id == id }
-    }
+    suspend fun getProductById(id: String): ProductEntity? = products.value.find { it.id == id }
 
     var selectedProduct by mutableStateOf<ProductEntity?>(null)
         private set
@@ -234,9 +201,7 @@ class PosViewModel @Inject constructor(
 
     fun openTransactionDetail(tx: TransactionEntity) {
         selectedTransaction = tx
-        viewModelScope.launch {
-            selectedTransactionItems = repository.getTransactionItems(tx.id)
-        }
+        viewModelScope.launch { selectedTransactionItems = repository.getTransactionItems(tx.id) }
     }
 
     var paymentMethod by mutableStateOf("CASH")
@@ -251,38 +216,20 @@ class PosViewModel @Inject constructor(
 
     fun setPaymentType(type: String) {
         paymentMethod = type
-        if (type != "CASH") {
-            amountPaidInput = grandTotal.value.toInt().toString()
-        } else {
-            amountPaidInput = ""
-        }
+        if (type != "CASH") amountPaidInput = grandTotal.value.toInt().toString()
+        else amountPaidInput = ""
     }
 
-    // [PERBAIKAN] Menerima timestamp (Long) lalu memformatnya di dalam
-    private fun generateReceipt(
-        txId: String,
-        timestamp: Long, // Ubah dari String ke Long
-        cashier: String,
-        items: List<CartItem>,
-        total: Double,
-        payMethod: String,
-        paid: Double,
-        change: Double,
-        discount: Double
-    ): String {
+    private fun generateReceipt(txId: String, timestamp: Long, cashier: String, items: List<CartItem>, total: Double, payMethod: String, paid: Double, change: Double, discount: Double): String {
         val sb = StringBuilder()
-        // Format Tanggal di sini
         val dateStr = SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(Date(timestamp))
-
         fun center(text: String): String {
             val padding = (32 - text.length) / 2
             return " ".repeat(padding.coerceAtLeast(0)) + text + "\n"
         }
-
         fun line() = "--------------------------------\n"
-
         fun row(label: String, value: Double): String {
-            val vStr = "Rp${"%.0f".format(value)}"
+            val vStr = value.toRupiah()
             val sp = 32 - label.length - vStr.length
             return label + " ".repeat(sp.coerceAtLeast(0)) + vStr + "\n"
         }
@@ -292,7 +239,7 @@ class PosViewModel @Inject constructor(
         sb.append(center("Telp: 0812-3456-7890"))
         sb.append(line())
         sb.append("No: ${txId.take(8)}\n")
-        sb.append("Date: $dateStr\n") // Gunakan string yang sudah diformat
+        sb.append("Date: $dateStr\n")
         sb.append("Cashier: $cashier\n")
         sb.append(line())
 
@@ -301,87 +248,51 @@ class PosViewModel @Inject constructor(
             val totalItem = item.total
             subTotalCalc += totalItem
             sb.append("${item.product.name} (${item.selectedUnit})\n")
-            val qtyPrice = "${item.quantity} x ${"%.0f".format(item.activePrice)}"
-            val subTotalStr = "%.0f".format(totalItem)
+            val qtyPrice = "${item.quantity} x ${item.activePrice.toRupiah()}"
+            val subTotalStr = totalItem.toRupiah().replace("Rp", "")
             val spaces = 32 - qtyPrice.length - subTotalStr.length
             sb.append(qtyPrice + " ".repeat(spaces.coerceAtLeast(0)) + subTotalStr + "\n")
         }
 
         sb.append(line())
         sb.append(row("SUBTOTAL", subTotalCalc))
-        if (discount > 0) {
-            sb.append(row("DISCOUNT", -discount))
-        }
+        if (discount > 0) sb.append(row("DISCOUNT", -discount))
         sb.append(row("GRAND TOTAL", total))
         sb.append(line())
         sb.append(row("PAYMENT ($payMethod)", paid))
         sb.append(row("CHANGE", change))
-
         sb.append(line())
         sb.append(center("Thank You!"))
         sb.append(center("Please Come Again"))
         sb.append("\n\n")
-
         return sb.toString()
     }
 
     fun checkout() {
         val paid = amountPaidInput.toDoubleOrNull() ?: 0.0
         val total = grandTotal.value
-
         if (paid < total && paymentMethod == "CASH") return
-
         val currentItems = _cart.value
         val txId = UUID.randomUUID().toString()
-        val dateLong = System.currentTimeMillis() // Long timestamp
+        val dateLong = System.currentTimeMillis()
         val currentDiscount = discountAmount
 
         viewModelScope.launch {
-            val transaction = TransactionEntity(
-                id = txId,
-                totalAmount = total,
-                date = dateLong, // Cocok dengan Entity (Long)
-                cashierName = currentUserName,
-                paymentMethod = paymentMethod,
-                amountPaid = paid,
-                changeAmount = changeAmount,
-                discount = currentDiscount
-            )
-
+            val transaction = TransactionEntity(id = txId, totalAmount = total, date = dateLong, cashierName = currentUserName, paymentMethod = paymentMethod, amountPaid = paid, changeAmount = changeAmount, discount = currentDiscount)
             val transactionItems = currentItems.map { item ->
-                TransactionItemEntity(
-                    id = UUID.randomUUID().toString(),
-                    transactionId = txId,
-                    productId = item.product.id,
-                    productName = item.product.name,
-                    quantity = item.quantity,
-                    unit = item.selectedUnit,
-                    priceSnapshot = item.activePrice,
-                    subtotal = item.total
-                )
+                TransactionItemEntity(id = UUID.randomUUID().toString(), transactionId = txId, productId = item.product.id, productName = item.product.name, quantity = item.quantity, unit = item.selectedUnit, priceSnapshot = item.activePrice, subtotal = item.total)
+            }
+            val updatedProducts = currentItems.map { item ->
+                item.product.copy(stock = item.product.stock - item.quantity, updatedAt = System.currentTimeMillis(), isSynced = false)
             }
 
-            repository.saveTransaction(transaction, transactionItems)
-
-            currentItems.forEach { item ->
-                val newStock = item.product.stock - item.quantity
-                val updatedProduct = item.product.copy(
-                    stock = newStock,
-                    updatedAt = System.currentTimeMillis(),
-                    isSynced = false
-                )
-                repository.updateProduct(updatedProduct)
-            }
-
-            // dateLong (Long) dikirim ke fungsi generateReceipt
+            repository.completeTransaction(transaction, transactionItems, updatedProducts)
             val receipt = generateReceipt(txId, dateLong, currentUserName, currentItems, total, paymentMethod, paid, changeAmount, currentDiscount)
             _receiptText.value = receipt
-
             _cart.value = emptyList()
             amountPaidInput = ""
             discountAmount = 0.0
             paymentMethod = "CASH"
-
             repository.syncData()
         }
     }

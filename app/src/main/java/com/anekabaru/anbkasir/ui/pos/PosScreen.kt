@@ -5,18 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -26,36 +15,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.ShoppingCart
-import androidx.compose.material.icons.filled.Store
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -72,18 +34,11 @@ import com.anekabaru.anbkasir.ui.components.AppSnackbar
 import com.anekabaru.anbkasir.ui.components.BarcodeScanner
 import com.anekabaru.anbkasir.ui.components.PullToRefreshLayout
 import com.anekabaru.anbkasir.ui.components.SnackbarType
-import com.anekabaru.anbkasir.ui.theme.BackgroundApp
-import com.anekabaru.anbkasir.ui.theme.BorderColor
-import com.anekabaru.anbkasir.ui.theme.BrandBlue
-import com.anekabaru.anbkasir.ui.theme.BrandGreen
-import com.anekabaru.anbkasir.ui.theme.SurfaceBlue
-import com.anekabaru.anbkasir.ui.theme.SurfaceGreen
-import com.anekabaru.anbkasir.ui.theme.SystemRed
-import com.anekabaru.anbkasir.ui.theme.TextPrimary
-import com.anekabaru.anbkasir.ui.theme.TextSecondary
-import com.anekabaru.anbkasir.ui.theme.TextTertiary
-import com.anekabaru.anbkasir.ui.theme.White
+import com.anekabaru.anbkasir.ui.theme.*
+import com.anekabaru.anbkasir.util.toRupiah
+import com.anekabaru.anbkasir.ui.components.RupiahText
 import kotlinx.coroutines.launch
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -100,7 +55,6 @@ fun PosScreen(
     var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf<String?>(null) }
 
-    // State Scanner
     var showScanner by remember { mutableStateOf(false) }
     var isProcessingScan by remember { mutableStateOf(false) }
 
@@ -108,14 +62,12 @@ fun PosScreen(
         if (showScanner) isProcessingScan = false
     }
 
-    // --- CUSTOM SNACKBAR STATE ---
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
-    // State untuk menentukan warna snackbar (Success/Error)
     var snackbarType by remember { mutableStateOf(SnackbarType.INFO) }
 
     fun showFeedback(message: String, type: SnackbarType) {
-        snackbarType = type // Set tipe dulu
+        snackbarType = type
         scope.launch {
             snackbarHostState.currentSnackbarData?.dismiss()
             snackbarHostState.showSnackbar(message, duration = SnackbarDuration.Short, withDismissAction = true)
@@ -172,7 +124,6 @@ fun PosScreen(
     Scaffold(
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
-                // Gunakan Custom AppSnackbar di sini
                 AppSnackbar(snackbarData = data, type = snackbarType)
             }
         },
@@ -194,7 +145,7 @@ fun PosScreen(
                     ) {
                         Column {
                             Text("$itemCount Items", color = White, style = MaterialTheme.typography.labelSmall)
-                            Text("Total: Rp${"%.0f".format(total)}", color = White, style = MaterialTheme.typography.titleMedium)
+                            RupiahText(amount = total, color = White, style = MaterialTheme.typography.titleMedium)
                         }
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text("View Cart", color = White, fontWeight = FontWeight.Bold)
@@ -282,10 +233,7 @@ fun PosScreen(
                                 onAdd = {
                                     if (qtyInCart < product.stock) {
                                         viewModel.updateCartQuantity(product.id, 1)
-                                        // Feedback tidak perlu ditampilkan setiap kali klik + agar tidak spamming,
-                                        // tapi jika mau bisa tambahkan showFeedback("Ditambahkan", SnackbarType.SUCCESS)
                                     } else {
-                                        // [MERAH] Stok Habis
                                         showFeedback("Stok tidak mencukupi!", SnackbarType.ERROR)
                                     }
                                 },
@@ -293,10 +241,8 @@ fun PosScreen(
                                 onClickInitial = {
                                     if (qtyInCart < product.stock) {
                                         viewModel.addToCart(product)
-                                        // [HIJAU] Berhasil
                                         showFeedback("${product.name} masuk keranjang", SnackbarType.SUCCESS)
                                     } else {
-                                        // [MERAH] Stok Habis
                                         showFeedback("Stok ${product.name} habis!", SnackbarType.ERROR)
                                     }
                                 }
@@ -342,18 +288,17 @@ fun CategoryChipPOS(label: String, isSelected: Boolean, onClick: () -> Unit) {
 fun ProductCardSimple(product: ProductEntity, qty: Int, onAdd: () -> Unit, onRemove: () -> Unit, onClickInitial: () -> Unit) {
     val isSelected = qty > 0
 
-    val defaultUnit = product.unitPrices.entries.find { it.value == product.sellPrice }?.key
+    val defaultUnit = product.unitPrices.entries.find { abs(it.value - product.sellPrice) < 0.001 }?.key
         ?: product.unitPrices.keys.firstOrNull()
         ?: "Pcs"
 
-    // [TAMBAHAN] Cek jika stok menipis (misal di bawah 10 atau threshold)
     val isLowStock = product.stock <= 5
 
     Card(
-        modifier = Modifier.fillMaxWidth().height(160.dp).clickable(enabled = !isSelected) { onClickInitial() }, // Tinggi sedikit ditambah
+        modifier = Modifier.fillMaxWidth().height(160.dp).clickable(enabled = !isSelected) { onClickInitial() },
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
         colors = CardDefaults.cardColors(
-            containerColor = if (isLowStock) Color(0xFFFFF5F5) else White // Sedikit merah jika stok tipis
+            containerColor = if (isLowStock) Color(0xFFFFF5F5) else White
         ),
         shape = RoundedCornerShape(12.dp),
         border = if (isSelected) androidx.compose.foundation.BorderStroke(2.dp, BrandGreen) else null
@@ -364,7 +309,6 @@ fun ProductCardSimple(product: ProductEntity, qty: Int, onAdd: () -> Unit, onRem
                     Surface(color = SurfaceBlue, shape = RoundedCornerShape(6.dp)) {
                         Text(product.category.uppercase(), modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall, color = BrandBlue, fontSize = 10.sp)
                     }
-                    // [BARU] Indikator Stok di Pojok Kanan Atas Kartu
                     Text(
                         "Stok: ${product.stock}",
                         style = MaterialTheme.typography.labelSmall,
@@ -383,7 +327,10 @@ fun ProductCardSimple(product: ProductEntity, qty: Int, onAdd: () -> Unit, onRem
                     Surface(modifier = Modifier.size(28.dp).clickable { onAdd() }, shape = RoundedCornerShape(8.dp), color = BrandGreen) { Box(contentAlignment = Alignment.Center) { Icon(Icons.Default.Add, null, tint = White, modifier = Modifier.size(16.dp)) } }
                 }
             } else {
-                Text("Rp${"%.0f".format(product.sellPrice)} / $defaultUnit", style = MaterialTheme.typography.titleMedium, color = BrandGreen)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RupiahText(amount = product.sellPrice, style = MaterialTheme.typography.titleMedium, color = BrandGreen)
+                    Text(" / $defaultUnit", style = MaterialTheme.typography.titleMedium, color = BrandGreen)
+                }
             }
         }
     }

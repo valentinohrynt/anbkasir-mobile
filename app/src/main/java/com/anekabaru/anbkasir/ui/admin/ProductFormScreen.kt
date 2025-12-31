@@ -27,6 +27,7 @@ import com.anekabaru.anbkasir.ui.PosViewModel
 import com.anekabaru.anbkasir.ui.components.AppSnackbar
 import com.anekabaru.anbkasir.ui.components.BarcodeScanner
 import com.anekabaru.anbkasir.ui.components.SnackbarType
+import com.anekabaru.anbkasir.ui.components.RupiahTextField
 import com.anekabaru.anbkasir.ui.theme.*
 import kotlinx.coroutines.launch
 
@@ -44,7 +45,6 @@ fun ProductFormScreen(
     var barcode by remember { mutableStateOf(productToEdit?.barcode ?: "") }
     var stock by remember { mutableStateOf(productToEdit?.stock?.toString() ?: "0") }
     var buyPrice by remember { mutableStateOf(productToEdit?.buyPrice?.toInt()?.toString() ?: "0") }
-
     var wholesalePrice by remember { mutableStateOf(productToEdit?.wholesalePrice?.toInt()?.toString() ?: "0") }
     var wholesaleThreshold by remember { mutableStateOf(productToEdit?.wholesaleThreshold?.toString() ?: "0") }
 
@@ -78,35 +78,6 @@ fun ProductFormScreen(
         else showFeedback("Izin kamera diperlukan", SnackbarType.ERROR)
     }
 
-    @Composable
-    fun CleanTextField(
-        value: String,
-        onValueChange: (String) -> Unit,
-        label: String,
-        modifier: Modifier = Modifier,
-        isNumber: Boolean = false,
-        trailingIcon: @Composable (() -> Unit)? = null
-    ) {
-        OutlinedTextField(
-            value = value,
-            onValueChange = onValueChange,
-            label = { Text(label, style = MaterialTheme.typography.bodyMedium, color = TextTertiary) },
-            modifier = modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = BrandBlue,
-                focusedLabelColor = BrandBlue,
-                unfocusedBorderColor = BorderColor,
-                cursorColor = BrandBlue,
-                focusedContainerColor = White,
-                unfocusedContainerColor = White
-            ),
-            keyboardOptions = if (isNumber) KeyboardOptions(keyboardType = KeyboardType.Number) else KeyboardOptions.Default,
-            singleLine = true,
-            trailingIcon = trailingIcon
-        )
-    }
-
     Scaffold(
         snackbarHost = {
             SnackbarHost(hostState = snackbarHostState) { data ->
@@ -119,116 +90,57 @@ fun ProductFormScreen(
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextPrimary) } },
                 actions = {
                     IconButton(onClick = {
-                        if (name.isEmpty()) {
-                            showFeedback("Nama produk wajib diisi", SnackbarType.ERROR)
-                            return@IconButton
-                        }
-
+                        if (name.isEmpty()) { showFeedback("Nama produk wajib diisi", SnackbarType.ERROR); return@IconButton }
                         val unitPricesMap = unitPriceList.associate { it.first to (it.second.toDoubleOrNull() ?: 0.0) }
                         val defaultSellPrice = unitPricesMap["Pcs"] ?: unitPricesMap.values.firstOrNull() ?: 0.0
 
                         if (isEditMode && productToEdit != null) {
-                            val updatedProduct = productToEdit.copy(
-                                name = name,
-                                category = category,
-                                barcode = barcode,
-                                stock = stock.toIntOrNull() ?: 0,
-                                buyPrice = buyPrice.toDoubleOrNull() ?: 0.0,
-                                sellPrice = defaultSellPrice,
-                                wholesalePrice = wholesalePrice.toDoubleOrNull() ?: 0.0,
-                                wholesaleThreshold = wholesaleThreshold.toIntOrNull() ?: 0,
-                                unitPrices = unitPricesMap,
-                                updatedAt = System.currentTimeMillis(),
-                                isSynced = false
-                            )
-                            viewModel.updateProduct(updatedProduct)
+                            viewModel.updateProduct(productToEdit.copy(name = name, category = category, barcode = barcode, stock = stock.toIntOrNull() ?: 0, buyPrice = buyPrice.toDoubleOrNull() ?: 0.0, sellPrice = defaultSellPrice, wholesalePrice = wholesalePrice.toDoubleOrNull() ?: 0.0, wholesaleThreshold = wholesaleThreshold.toIntOrNull() ?: 0, unitPrices = unitPricesMap, updatedAt = System.currentTimeMillis(), isSynced = false))
                         } else {
-                            viewModel.addProduct(
-                                name = name,
-                                buy = buyPrice.toDoubleOrNull() ?: 0.0,
-                                stock = stock.toIntOrNull() ?: 0,
-                                cat = category,
-                                bar = barcode,
-                                unitPrices = unitPricesMap,
-                                wholesalePrice = wholesalePrice.toDoubleOrNull() ?: 0.0,
-                                wholesaleThreshold = wholesaleThreshold.toIntOrNull() ?: 0
-                            )
+                            viewModel.addProduct(name = name, buy = buyPrice.toDoubleOrNull() ?: 0.0, stock = stock.toIntOrNull() ?: 0, cat = category, bar = barcode, unitPrices = unitPricesMap, wholesalePrice = wholesalePrice.toDoubleOrNull() ?: 0.0, wholesaleThreshold = wholesaleThreshold.toIntOrNull() ?: 0)
                         }
                         onBack()
-                    }) {
-                        Icon(Icons.Default.Check, "Save", tint = BrandBlue)
-                    }
+                    }) { Icon(Icons.Default.Check, "Save", tint = BrandBlue) }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = White)
             )
         },
         containerColor = BackgroundApp
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
+        Column(modifier = Modifier.padding(padding).verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Card(colors = CardDefaults.cardColors(containerColor = White), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(12.dp)) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    CleanTextField(name, { name = it }, "Product Name")
+                    OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("Product Name") }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        CleanTextField(category, { category = it }, "Category", Modifier.weight(1f))
-                        CleanTextField(
-                            value = barcode,
-                            onValueChange = { barcode = it },
-                            label = "Barcode",
-                            modifier = Modifier.weight(1f),
-                            trailingIcon = {
-                                IconButton(onClick = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                                    Icon(Icons.Default.QrCodeScanner, "Scan", tint = BrandBlue)
-                                }
-                            }
-                        )
+                        OutlinedTextField(value = category, onValueChange = { category = it }, label = { Text("Category") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp))
+                        OutlinedTextField(value = barcode, onValueChange = { barcode = it }, label = { Text("Barcode") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), trailingIcon = {
+                            IconButton(onClick = { cameraPermissionLauncher.launch(Manifest.permission.CAMERA) }) { Icon(Icons.Default.QrCodeScanner, null, tint = BrandBlue) }
+                        })
                     }
                 }
             }
 
             Text("Stock & Cost", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
-
-            Card(
-                colors = CardDefaults.cardColors(containerColor = White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
+            Card(colors = CardDefaults.cardColors(containerColor = White), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(12.dp)) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        CleanTextField(stock, { if(it.all { c -> c.isDigit() }) stock = it }, "Initial Stock", Modifier.weight(1f), true)
-                        CleanTextField(buyPrice, { if(it.all { c -> c.isDigit() }) buyPrice = it }, "Buy Price (Modal)", Modifier.weight(1f), true)
+                        OutlinedTextField(value = stock, onValueChange = { if(it.all { c -> c.isDigit() }) stock = it }, label = { Text("Stock") }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                        RupiahTextField(value = buyPrice, onValueChange = { buyPrice = it }, label = "Buy Price (Modal)", modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp))
                     }
                 }
             }
 
-            Card(
-                colors = CardDefaults.cardColors(containerColor = White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
+            Text("Wholesale / Grosir", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
+            Card(colors = CardDefaults.cardColors(containerColor = White), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(12.dp)) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Wholesale / Grosir (Aturan Eceran)", style = MaterialTheme.typography.labelMedium, color = BrandBlue)
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        CleanTextField(wholesalePrice, { if(it.all { c -> c.isDigit() }) wholesalePrice = it }, "Wholesale Price", Modifier.weight(1f), true)
-                        CleanTextField(wholesaleThreshold, { if(it.all { c -> c.isDigit() }) wholesaleThreshold = it }, "Min Qty", Modifier.weight(0.6f), true)
+                        RupiahTextField(value = wholesalePrice, onValueChange = { wholesalePrice = it }, label = "Wholesale Price", modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp))
+                        OutlinedTextField(value = wholesaleThreshold, onValueChange = { if(it.all { c -> c.isDigit() }) wholesaleThreshold = it }, label = { Text("Min Qty") }, modifier = Modifier.weight(0.6f), shape = RoundedCornerShape(12.dp), keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
                     }
                 }
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text("Selling Units & Prices", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
                 TextButton(onClick = { unitPriceList = unitPriceList + ("" to "0") }) {
                     Icon(Icons.Default.Add, null, modifier = Modifier.size(16.dp))
@@ -237,54 +149,19 @@ fun ProductFormScreen(
                 }
             }
 
-            Card(
-                colors = CardDefaults.cardColors(containerColor = White),
-                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                shape = RoundedCornerShape(12.dp)
-            ) {
+            Card(colors = CardDefaults.cardColors(containerColor = White), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(12.dp)) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     unitPriceList.forEachIndexed { index, (unitName, priceStr) ->
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            CleanTextField(
-                                value = unitName,
-                                onValueChange = { newName ->
-                                    val newList = unitPriceList.toMutableList()
-                                    newList[index] = newName to priceStr
-                                    unitPriceList = newList
-                                },
-                                label = "Unit (ex: Pcs)",
-                                modifier = Modifier.weight(1f)
-                            )
-                            CleanTextField(
-                                value = priceStr,
-                                onValueChange = { newPrice ->
-                                    if(newPrice.all { c -> c.isDigit() }) {
-                                        val newList = unitPriceList.toMutableList()
-                                        newList[index] = unitName to newPrice
-                                        unitPriceList = newList
-                                    }
-                                },
-                                label = "Sell Price",
-                                modifier = Modifier.weight(1f),
-                                isNumber = true
-                            )
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(value = unitName, onValueChange = { new -> val n = unitPriceList.toMutableList(); n[index] = new to priceStr; unitPriceList = n }, label = { Text("Unit") }, modifier = Modifier.weight(0.8f), shape = RoundedCornerShape(12.dp))
+                            RupiahTextField(value = priceStr, onValueChange = { new -> val n = unitPriceList.toMutableList(); n[index] = unitName to new; unitPriceList = n }, label = "Sell Price", modifier = Modifier.weight(1.2f), shape = RoundedCornerShape(12.dp))
                             if (unitPriceList.size > 1) {
-                                IconButton(onClick = {
-                                    val newList = unitPriceList.toMutableList()
-                                    newList.removeAt(index)
-                                    unitPriceList = newList
-                                }) {
-                                    Icon(Icons.Default.Delete, "Remove", tint = SystemRed)
-                                }
+                                IconButton(onClick = { val n = unitPriceList.toMutableList(); n.removeAt(index); unitPriceList = n }) { Icon(Icons.Default.Delete, null, tint = SystemRed) }
                             }
                         }
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(30.dp))
         }
     }
 

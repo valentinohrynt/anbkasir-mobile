@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.anekabaru.anbkasir.ui.PosViewModel
 import com.anekabaru.anbkasir.ui.components.PullToRefreshLayout
+import com.anekabaru.anbkasir.ui.components.RupiahText
 import com.anekabaru.anbkasir.ui.theme.*
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -42,139 +43,54 @@ fun SalesHistoryScreen(
 
     val filteredHistory = remember(history, selectedDateRange) {
         val (start, end) = selectedDateRange
-        if (start == null || end == null) {
-            history
-        } else {
-            val startDate = start
-            val endDate = end + 86400000 - 1
-
-            history.filter { tx ->
-                tx.date in startDate..endDate
-            }
-        }
+        if (start == null || end == null) history
+        else history.filter { it.date in start..(end + 86400000 - 1) }
     }
 
-    val SurfaceOrange = Color(0xFFFFF7ED)
-
-    Scaffold(
-        containerColor = BackgroundApp
-    ) { padding ->
-        PullToRefreshLayout(
-            isRefreshing = isSyncing,
-            onRefresh = { viewModel.sync() },
-            modifier = Modifier.padding(padding)
-        ) {
+    Scaffold(containerColor = BackgroundApp) { padding ->
+        PullToRefreshLayout(isRefreshing = isSyncing, onRefresh = { viewModel.sync() }, modifier = Modifier.padding(padding)) {
             Column(modifier = Modifier.fillMaxSize()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(White)
-                        .padding(20.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            IconButton(onClick = onBack) {
-                                Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = TextPrimary, modifier = Modifier.size(20.dp))
-                            }
+                Column(modifier = Modifier.fillMaxWidth().background(White).padding(20.dp)) {
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null, modifier = Modifier.size(20.dp)) }
                             Column {
-                                Text("Sales History", style = MaterialTheme.typography.titleLarge, color = TextPrimary)
+                                Text("Sales History", style = MaterialTheme.typography.titleLarge)
                                 Text("${filteredHistory.size} Transactions", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                             }
                         }
-                        Box(
-                            modifier = Modifier.size(36.dp).clip(CircleShape).background(SurfaceOrange),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier.size(36.dp).clip(CircleShape).background(Color(0xFFFFF7ED)), contentAlignment = Alignment.Center) {
                             Icon(Icons.Default.History, null, tint = BrandOrange, modifier = Modifier.size(20.dp))
                         }
                     }
-
                     Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        OutlinedButton(
-                            onClick = { showDatePicker = true },
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = TextSecondary),
-                            modifier = Modifier.weight(1f)
-                        ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                        OutlinedButton(onClick = { showDatePicker = true }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp)) {
                             Icon(Icons.Default.CalendarToday, null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            val (start, end) = selectedDateRange
-                            Text(
-                                if (start != null && end != null) {
-                                    val f = SimpleDateFormat("dd MMM", Locale.getDefault())
-                                    "${f.format(Date(start))} - ${f.format(Date(end))}"
-                                } else "Filter by Date Range",
-                                style = MaterialTheme.typography.labelMedium
-                            )
+                            val (s, e) = selectedDateRange
+                            Text(if (s != null && e != null) "${SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(s))} - ${SimpleDateFormat("dd MMM", Locale.getDefault()).format(Date(e))}" else "Filter by Date Range")
                         }
-
                         if (selectedDateRange.first != null) {
                             Spacer(modifier = Modifier.width(8.dp))
-                            IconButton(
-                                onClick = { selectedDateRange = null to null },
-                                modifier = Modifier.background(BackgroundApp, CircleShape)
-                            ) {
-                                Icon(Icons.Default.Close, "Clear", tint = TextSecondary)
-                            }
+                            IconButton(onClick = { selectedDateRange = null to null }, modifier = Modifier.background(BackgroundApp, CircleShape)) { Icon(Icons.Default.Close, null) }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    contentPadding = PaddingValues(top = 8.dp, bottom = 16.dp)
-                ) {
+                LazyColumn(modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(top = 16.dp, bottom = 16.dp)) {
                     if (filteredHistory.isEmpty()) {
-                        item {
-                            Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Icon(Icons.Default.History, null, tint = TextTertiary, modifier = Modifier.size(48.dp))
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text("No transactions found", style = MaterialTheme.typography.bodyMedium, color = TextSecondary)
-                                }
-                            }
-                        }
+                        item { Box(modifier = Modifier.fillMaxWidth().height(300.dp), contentAlignment = Alignment.Center) { Text("No transactions found", color = TextSecondary) } }
                     } else {
                         items(filteredHistory) { tx ->
-                            Card(
-                                modifier = Modifier.clickable {
-                                    viewModel.openTransactionDetail(tx)
-                                    onNavigateToDetail()
-                                },
-                                colors = CardDefaults.cardColors(containerColor = White),
-                                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
-                                shape = RoundedCornerShape(12.dp)
-                            ) {
+                            Card(modifier = Modifier.clickable { viewModel.openTransactionDetail(tx); onNavigateToDetail() }, colors = CardDefaults.cardColors(containerColor = White), elevation = CardDefaults.cardElevation(defaultElevation = 1.dp), shape = RoundedCornerShape(12.dp)) {
                                 ListItem(
                                     headlineContent = { Text("Order #${tx.id.take(8).uppercase()}", style = MaterialTheme.typography.titleSmall) },
-                                    supportingContent = {
-                                        Text(
-                                            SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(tx.date)),
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = TextSecondary
-                                        )
-                                    },
+                                    supportingContent = { Text(SimpleDateFormat("dd MMM yyyy, HH:mm", Locale.getDefault()).format(Date(tx.date)), style = MaterialTheme.typography.labelSmall) },
                                     trailingContent = {
                                         Column(horizontalAlignment = Alignment.End) {
-                                            Text("Rp${"%.0f".format(tx.totalAmount)}", style = MaterialTheme.typography.titleSmall, color = BrandGreen)
-                                            Text(tx.paymentMethod, style = MaterialTheme.typography.labelSmall, color = TextTertiary, fontSize = 10.sp)
+                                            RupiahText(amount = tx.totalAmount, style = MaterialTheme.typography.titleSmall, color = BrandGreen)
+                                            Text(tx.paymentMethod, style = MaterialTheme.typography.labelSmall, color = TextTertiary)
                                         }
                                     },
                                     colors = ListItemDefaults.colors(containerColor = White)
@@ -188,28 +104,9 @@ fun SalesHistoryScreen(
     }
 
     if (showDatePicker) {
-        val datePickerState = rememberDateRangePickerState()
-        DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val start = datePickerState.selectedStartDateMillis
-                        val end = datePickerState.selectedEndDateMillis
-                        if (start != null && end != null) {
-                            selectedDateRange = start to end
-                        }
-                        showDatePicker = false
-                    }
-                ) { Text("Apply", color = BrandBlue) }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel", color = TextSecondary) }
-            }
-        ) {
-            DateRangePicker(state = datePickerState, title = {
-                Text("Select dates", modifier = Modifier.padding(16.dp), style = MaterialTheme.typography.titleMedium)
-            })
-        }
+        val state = rememberDateRangePickerState()
+        DatePickerDialog(onDismissRequest = { showDatePicker = false }, confirmButton = {
+            TextButton(onClick = { if (state.selectedStartDateMillis != null && state.selectedEndDateMillis != null) selectedDateRange = state.selectedStartDateMillis to state.selectedEndDateMillis; showDatePicker = false }) { Text("Apply") }
+        }) { DateRangePicker(state = state) }
     }
 }
