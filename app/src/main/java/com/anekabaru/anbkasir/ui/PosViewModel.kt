@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.asLiveData
 import androidx.lifecycle.viewModelScope
 import com.anekabaru.anbkasir.data.PosRepository
 import com.anekabaru.anbkasir.data.ProductEntity
@@ -180,14 +181,6 @@ class PosViewModel @Inject constructor(
             repository.deleteProduct(id)
         }
     }
-
-    fun sync() {
-        viewModelScope.launch {
-            _isSyncing.value = true
-            try { repository.syncData() } catch (e: Exception) { e.printStackTrace() } finally { _isSyncing.value = false }
-        }
-    }
-
     fun getSalesTotal(start: Long, end: Long) = repository.getSalesTotal(start, end)
     fun getTxCount(start: Long, end: Long) = repository.getTxCount(start, end)
 
@@ -327,5 +320,27 @@ class PosViewModel @Inject constructor(
             // Trigger sinkronisasi otomatis
             repository.syncData()
         }
+    }
+
+    val topProducts = repository.getTopProducts().asLiveData(viewModelScope.coroutineContext)
+    val totalProfit = repository.getTotalProfit().asLiveData(viewModelScope.coroutineContext)
+    val salesTrend = repository.getDailySalesTrend().asLiveData(viewModelScope.coroutineContext)
+
+    fun sync() {
+        viewModelScope.launch {
+            if (_isSyncing.value) return@launch
+            _isSyncing.value = true
+            try {
+                repository.syncData()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            } finally {
+                _isSyncing.value = false
+            }
+        }
+    }
+
+    fun triggerAutoSync() {
+        sync()
     }
 }

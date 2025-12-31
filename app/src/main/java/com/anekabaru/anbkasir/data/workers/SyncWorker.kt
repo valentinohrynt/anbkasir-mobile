@@ -1,6 +1,7 @@
 package com.anekabaru.anbkasir.data.workers
 
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.anekabaru.anbkasir.data.PosRepository
@@ -14,7 +15,6 @@ class SyncWorker(
     params: WorkerParameters
 ) : CoroutineWorker(context, params) {
 
-    // 1. Define an EntryPoint to access Hilt dependencies
     @EntryPoint
     @InstallIn(SingletonComponent::class)
     interface SyncWorkerEntryPoint {
@@ -23,8 +23,6 @@ class SyncWorker(
 
     override suspend fun doWork(): Result {
         return try {
-            // 2. Use EntryPointAccessors to get the injected Repository
-            // This automatically handles the Database and API connections for us
             val appContext = applicationContext
             val entryPoint = EntryPointAccessors.fromApplication(
                 appContext,
@@ -32,11 +30,14 @@ class SyncWorker(
             )
             val repository = entryPoint.getRepository()
 
-            // 3. Run the sync
+            // Menjalankan sinkronisasi data secara agresif (Push & Pull)
             repository.syncData()
+
+            Log.d("SyncWorker", "Sinkronisasi otomatis berhasil dijalankan")
             Result.success()
         } catch (e: Exception) {
-            e.printStackTrace()
+            Log.e("SyncWorker", "Sinkronisasi otomatis gagal: ${e.message}")
+            // Menginstruksikan WorkManager untuk mencoba lagi berdasarkan kriteria backoff
             Result.retry()
         }
     }

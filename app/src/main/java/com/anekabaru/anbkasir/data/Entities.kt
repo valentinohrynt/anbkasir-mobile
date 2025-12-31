@@ -37,6 +37,18 @@ data class ProductEntity(
     @SerializedName("deleted_at") val deletedAt: Long? = null
 )
 
+data class TopProduct(
+    val productId: String,
+    val productName: String,
+    val totalQty: Int,
+    val totalSales: Double
+)
+
+data class DailySales(
+    val day: String,
+    val dailyTotal: Double
+)
+
 @Entity(tableName = "transactions")
 data class TransactionEntity(
     @PrimaryKey val id: String,

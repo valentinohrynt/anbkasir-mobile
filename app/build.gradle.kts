@@ -80,6 +80,13 @@ dependencies {
     implementation(libs.barcode.scanning)
 
     implementation(libs.material.icons.extended)
+    implementation("com.patrykandpatrick.vico:compose:2.0.0-alpha.22")
+    implementation("com.patrykandpatrick.vico:compose-m3:2.0.0-alpha.22")
+    implementation("com.patrykandpatrick.vico:core:2.0.0-alpha.22")
+
+    // Untuk observeAsState()
+    implementation("androidx.compose.runtime:runtime-livedata:1.6.0")
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

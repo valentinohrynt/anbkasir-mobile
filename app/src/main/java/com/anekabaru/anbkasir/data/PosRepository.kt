@@ -7,8 +7,9 @@ import com.anekabaru.anbkasir.data.remote.TransactionItemSyncPayload
 import com.anekabaru.anbkasir.data.remote.TransactionSyncPayload
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 class PosRepository @Inject constructor(
@@ -93,7 +94,7 @@ class PosRepository @Inject constructor(
             }
         } catch (e: Exception) { Log.e(TAG, "Tx push error: ${e.message}") }
 
-        // 3. PULL TRANSACTIONS (PENTING: Agar riwayat muncul setelah refresh)
+        // 3. PULL TRANSACTIONS
         try {
             val serverSales = api.getSalesHistory()
             if (serverSales.isNotEmpty()) {
@@ -142,6 +143,21 @@ class PosRepository @Inject constructor(
     }
 
     suspend fun getTransactionItems(txId: String) = db.posDao().getItemsForTransaction(txId)
+
     fun getSalesTotal(start: Long, end: Long): Flow<Double?> = db.posDao().getSalesTotal(start, end)
+
     fun getTxCount(start: Long, end: Long): Flow<Int> = db.posDao().getTxCount(start, end)
+
+    // --- REVISI ANALYTICS ---
+
+    fun getTopProducts(): Flow<List<TopProduct>> = db.posDao().getTopProducts()
+
+    fun getTotalProfit(): Flow<Double?> = db.posDao().getTotalProfit()
+
+    // Mengubah List<DailySales> dari DAO menjadi Map<String, Double> untuk UI
+    fun getDailySalesTrend(): Flow<Map<String, Double>> {
+        return db.posDao().getDailySalesTrend().map { list ->
+            list.associate { it.day to it.dailyTotal }
+        }
+    }
 }

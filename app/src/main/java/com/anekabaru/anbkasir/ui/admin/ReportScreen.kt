@@ -3,7 +3,17 @@ package com.anekabaru.anbkasir.ui.admin
 import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -12,11 +22,34 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.TrendingUp
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.Inventory
 import androidx.compose.material.icons.outlined.MonetizationOn
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.livedata.observeAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,8 +64,25 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
 import com.anekabaru.anbkasir.ui.PosViewModel
 import com.anekabaru.anbkasir.ui.components.RupiahText
-import com.anekabaru.anbkasir.ui.theme.*
+import com.anekabaru.anbkasir.ui.theme.BackgroundApp
+import com.anekabaru.anbkasir.ui.theme.BorderColor
+import com.anekabaru.anbkasir.ui.theme.BrandBlue
+import com.anekabaru.anbkasir.ui.theme.BrandGreen
+import com.anekabaru.anbkasir.ui.theme.BrandOrange
+import com.anekabaru.anbkasir.ui.theme.SurfaceBlue
+import com.anekabaru.anbkasir.ui.theme.SystemRed
+import com.anekabaru.anbkasir.ui.theme.TextPrimary
+import com.anekabaru.anbkasir.ui.theme.TextSecondary
+import com.anekabaru.anbkasir.ui.theme.TextTertiary
+import com.anekabaru.anbkasir.ui.theme.White
 import com.anekabaru.anbkasir.util.toRupiah
+import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberBottomAxis
+import com.patrykandpatrick.vico.compose.cartesian.axis.rememberStartAxis
+import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.core.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.core.cartesian.data.lineSeries
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -42,7 +92,14 @@ fun ReportScreen(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+
+    // Perbaikan 1: Gunakan collectAsState() untuk StateFlow (products)
     val products by viewModel.products.collectAsState()
+
+    // Perbaikan 2: observeAsState memerlukan dependensi: implementation("androidx.compose.runtime:runtime-livedata")
+    val topProducts by viewModel.topProducts.observeAsState(emptyList())
+    val totalProfit by viewModel.totalProfit.observeAsState(0.0)
+    val salesTrendMap by viewModel.salesTrend.observeAsState(emptyMap())
 
     val totalAssetValue = remember(products) {
         products.sumOf { it.stock * it.buyPrice }
@@ -83,6 +140,55 @@ fun ReportScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
+            Text(
+                "Sales Performance",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextSecondary
+            )
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = White),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        "Daily Sales Trend",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = TextSecondary
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    // Perbaikan 3: Pastikan data dikirim dalam bentuk List<Pair>
+                    if (salesTrendMap != null && salesTrendMap.isNotEmpty()) {
+                        SalesChart(salesData = salesTrendMap.toList().sortedBy { it.first })
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(100.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                "No trend data available",
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                SummaryCard(
+                    title = "Estimated Profit",
+                    amount = totalProfit ?: 0.0,
+                    icon = Icons.Default.TrendingUp,
+                    color = BrandGreen,
+                    modifier = Modifier.weight(1f)
+                )
+            }
 
             Text("Asset Valuation", style = MaterialTheme.typography.titleMedium, color = TextSecondary)
 
@@ -101,6 +207,69 @@ fun ReportScreen(
                     color = BrandGreen,
                     modifier = Modifier.weight(1f)
                 )
+            }
+
+            Text(
+                "Top 5 Best Sellers",
+                style = MaterialTheme.typography.titleMedium,
+                color = TextSecondary
+            )
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = White),
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    if (topProducts == null || topProducts.isEmpty()) {
+                        Text(
+                            "No sales data available",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TextTertiary
+                        )
+                    } else {
+                        topProducts.forEach { product ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        product.productName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        "Revenue: ${product.totalSales.toRupiah()}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = TextSecondary
+                                    )
+                                }
+                                Surface(
+                                    color = SurfaceBlue,
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    Text(
+                                        "${product.totalQty} Sold",
+                                        modifier = Modifier.padding(
+                                            horizontal = 8.dp,
+                                            vertical = 4.dp
+                                        ),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = BrandBlue,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            if (product != topProducts.last()) {
+                                HorizontalDivider(color = BorderColor, thickness = 0.5.dp)
+                            }
+                        }
+                    }
+                }
             }
 
             Text("Inventory Status", style = MaterialTheme.typography.titleMedium, color = TextSecondary)
@@ -156,7 +325,9 @@ fun ReportScreen(
                     Icon(
                         Icons.AutoMirrored.Filled.ArrowBack,
                         null,
-                        modifier = Modifier.size(16.dp).graphicsLayer { rotationZ = 180f },
+                        modifier = Modifier
+                            .size(16.dp)
+                            .graphicsLayer { rotationZ = 180f },
                         tint = TextTertiary
                     )
                 }
@@ -199,7 +370,9 @@ fun ReportScreen(
             properties = DialogProperties(usePlatformDefaultWidth = false)
         ) {
             Surface(
-                modifier = Modifier.fillMaxSize().padding(16.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
                 shape = RoundedCornerShape(16.dp),
                 color = BackgroundApp
             ) {
@@ -218,7 +391,7 @@ fun ReportScreen(
                         }
                     }
 
-                    Divider(modifier = Modifier.padding(vertical = 12.dp))
+                    HorizontalDivider(modifier = Modifier.padding(vertical = 12.dp))
 
                     LazyColumn(
                         modifier = Modifier.weight(1f),
@@ -230,7 +403,9 @@ fun ReportScreen(
                                 border = androidx.compose.foundation.BorderStroke(1.dp, BorderColor)
                             ) {
                                 Row(
-                                    modifier = Modifier.padding(12.dp).fillMaxWidth(),
+                                    modifier = Modifier
+                                        .padding(12.dp)
+                                        .fillMaxWidth(),
                                     horizontalArrangement = Arrangement.SpaceBetween,
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
@@ -286,7 +461,9 @@ fun ReportScreen(
                                 Intent.createChooser(intent, "Export CSV Report")
                             )
                         },
-                        modifier = Modifier.fillMaxWidth().height(50.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(50.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = BrandBlue)
                     ) {
@@ -334,4 +511,36 @@ fun SummaryCard(
             }
         }
     }
+}
+
+@Composable
+fun SalesChart(salesData: List<Pair<String, Double>>) {
+    val modelProducer = remember { CartesianChartModelProducer.build() }
+
+    LaunchedEffect(salesData) {
+        if (salesData.isNotEmpty()) {
+            modelProducer.tryRunTransaction {
+                lineSeries {
+                    series(salesData.map { it.second })
+                }
+            }
+        }
+    }
+
+    CartesianChartHost(
+        chart = rememberCartesianChart(
+            rememberLineCartesianLayer(),
+            startAxis = rememberStartAxis(),
+            bottomAxis = rememberBottomAxis(
+                valueFormatter = { value, _, _ ->
+                    // Ambil 5 karakter terakhir (misal tanggal)
+                    salesData.getOrNull(value.toInt())?.first?.takeLast(5) ?: ""
+                }
+            ),
+        ),
+        modelProducer = modelProducer,
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(200.dp)
+    )
 }

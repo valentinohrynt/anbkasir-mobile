@@ -94,4 +94,38 @@ interface PosDao {
 
     @Query("DELETE FROM transactions WHERE isSynced = 1 AND deletedAt IS NOT NULL")
     suspend fun deleteSyncedDeletedTransactions()
+
+    @Query(
+        """
+    SELECT productId, productName, SUM(quantity) as totalQty, SUM(subtotal) as totalSales
+    FROM transaction_items
+    GROUP BY productId
+    ORDER BY totalQty DESC
+    LIMIT 5
+"""
+    )
+    fun getTopProducts(): Flow<List<TopProduct>>
+
+    @Query(
+        """
+    SELECT 
+        SUM((ti.priceSnapshot - p.buyPrice) * ti.quantity)
+    FROM transaction_items ti
+    JOIN products p ON ti.productId = p.id
+    JOIN transactions t ON ti.transactionId = t.id
+    WHERE t.deletedAt IS NULL
+"""
+    )
+    fun getTotalProfit(): Flow<Double?>
+
+    @Query(
+        """
+    SELECT strftime('%Y-%m-%d', date / 1000, 'unixepoch') as day, SUM(totalAmount) as dailyTotal
+    FROM transactions
+    WHERE deletedAt IS NULL
+    GROUP BY day
+    ORDER BY day ASC
+"""
+    )
+    fun getDailySalesTrend(): Flow<List<DailySales>>
 }
