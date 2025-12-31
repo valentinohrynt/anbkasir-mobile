@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PosDao {
     // --- PRODUCTS ---
-    @Query("SELECT * FROM products WHERE isDeleted = 0 ORDER BY name ASC")
+    @Query("SELECT * FROM products WHERE deletedAt IS NULL ORDER BY name ASC")
     fun getAllProducts(): Flow<List<ProductEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -22,8 +22,8 @@ interface PosDao {
     @Update
     suspend fun updateProduct(product: ProductEntity)
 
-    @Query("UPDATE products SET isDeleted = 1, isSynced = 0 WHERE id = :id")
-    suspend fun deleteProductSoft(id: String)
+    @Query("UPDATE products SET deletedAt = :timestamp, isSynced = 0 WHERE id = :id")
+    suspend fun deleteProductSoft(id: String, timestamp: Long = System.currentTimeMillis())
 
     @Query("DELETE FROM products WHERE id = :id")
     suspend fun deleteProduct(id: String)
@@ -41,7 +41,7 @@ interface PosDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransactionItems(items: List<TransactionItemEntity>)
 
-    @Query("SELECT * FROM transactions WHERE isDeleted = 0 ORDER BY date DESC")
+    @Query("SELECT * FROM transactions WHERE deletedAt IS NULL ORDER BY date DESC")
     fun getAllTransactions(): Flow<List<TransactionEntity>>
 
     @Query("SELECT * FROM transactions WHERE isSynced = 0")
@@ -53,15 +53,14 @@ interface PosDao {
     @Query("SELECT * FROM transaction_items WHERE transactionId = :txId")
     suspend fun getItemsForTransaction(txId: String): List<TransactionItemEntity>
 
-    // [PERBAIKAN] Parameter start dan end sekarang Long agar match dengan Entity
-    @Query("SELECT SUM(totalAmount) FROM transactions WHERE date BETWEEN :start AND :end AND isDeleted = 0")
+    @Query("SELECT SUM(totalAmount) FROM transactions WHERE date BETWEEN :start AND :end AND deletedAt IS NULL")
     fun getSalesTotal(start: Long, end: Long): Flow<Double?>
 
-    @Query("SELECT COUNT(*) FROM transactions WHERE date BETWEEN :start AND :end AND isDeleted = 0")
+    @Query("SELECT COUNT(*) FROM transactions WHERE date BETWEEN :start AND :end AND deletedAt IS NULL")
     fun getTxCount(start: Long, end: Long): Flow<Int>
 
     // --- SUPPLIERS ---
-    @Query("SELECT * FROM suppliers WHERE isDeleted = 0")
+    @Query("SELECT * FROM suppliers WHERE deletedAt IS NULL")
     fun getSuppliers(): Flow<List<SupplierEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -86,16 +85,13 @@ interface PosDao {
     @Query("UPDATE purchases SET isSynced = 1 WHERE id IN (:ids)")
     suspend fun markPurchasesSynced(ids: List<String>)
 
-    // --- CLEANUP ---
-    @Query("DELETE FROM products WHERE isSynced = 1")
-    suspend fun deleteSyncedProducts()
+    // --- CLEANUP (Gunakan isSynced dan deletedAt) ---
+    @Query("DELETE FROM products WHERE isSynced = 1 AND deletedAt IS NOT NULL")
+    suspend fun deleteSyncedDeletedProducts()
 
-    @Query("DELETE FROM suppliers WHERE isSynced = 1")
-    suspend fun deleteSyncedSuppliers()
+    @Query("DELETE FROM suppliers WHERE isSynced = 1 AND deletedAt IS NOT NULL")
+    suspend fun deleteSyncedDeletedSuppliers()
 
-    @Query("DELETE FROM transactions WHERE isSynced = 1")
-    suspend fun deleteSyncedTransactions()
-
-    @Query("DELETE FROM transaction_items WHERE transactionId IN (SELECT id FROM transactions WHERE isSynced = 1)")
-    suspend fun deleteSyncedTransactionItems()
+    @Query("DELETE FROM transactions WHERE isSynced = 1 AND deletedAt IS NOT NULL")
+    suspend fun deleteSyncedDeletedTransactions()
 }

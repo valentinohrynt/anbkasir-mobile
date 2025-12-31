@@ -175,7 +175,10 @@ class PosViewModel @Inject constructor(
     }
 
     fun deleteProduct(id: String) {
-        viewModelScope.launch { repository.deleteProduct(id) }
+        viewModelScope.launch {
+            // Memastikan repository menangani deletedAt (Long?)
+            repository.deleteProduct(id)
+        }
     }
 
     fun sync() {
@@ -238,7 +241,7 @@ class PosViewModel @Inject constructor(
         sb.append(center("Kebaman - Srono"))
         sb.append(center("Telp: 0812-3456-7890"))
         sb.append(line())
-        sb.append("No: ${txId.take(8)}\n")
+        sb.append("No: ${txId.take(8).uppercase()}\n")
         sb.append("Date: $dateStr\n")
         sb.append("Cashier: $cashier\n")
         sb.append(line())
@@ -278,21 +281,50 @@ class PosViewModel @Inject constructor(
         val currentDiscount = discountAmount
 
         viewModelScope.launch {
-            val transaction = TransactionEntity(id = txId, totalAmount = total, date = dateLong, cashierName = currentUserName, paymentMethod = paymentMethod, amountPaid = paid, changeAmount = changeAmount, discount = currentDiscount)
+            val transaction = TransactionEntity(
+                id = txId,
+                totalAmount = total,
+                date = dateLong,
+                cashierName = currentUserName,
+                paymentMethod = paymentMethod,
+                amountPaid = paid,
+                changeAmount = changeAmount,
+                discount = currentDiscount,
+                deletedAt = null // Memastikan data baru bukan data terhapus
+            )
+
             val transactionItems = currentItems.map { item ->
-                TransactionItemEntity(id = UUID.randomUUID().toString(), transactionId = txId, productId = item.product.id, productName = item.product.name, quantity = item.quantity, unit = item.selectedUnit, priceSnapshot = item.activePrice, subtotal = item.total)
+                TransactionItemEntity(
+                    id = UUID.randomUUID().toString(),
+                    transactionId = txId,
+                    productId = item.product.id,
+                    productName = item.product.name,
+                    quantity = item.quantity,
+                    unit = item.selectedUnit,
+                    priceSnapshot = item.activePrice,
+                    subtotal = item.total
+                )
             }
+
             val updatedProducts = currentItems.map { item ->
-                item.product.copy(stock = item.product.stock - item.quantity, updatedAt = System.currentTimeMillis(), isSynced = false)
+                item.product.copy(
+                    stock = item.product.stock - item.quantity,
+                    updatedAt = System.currentTimeMillis(),
+                    isSynced = false
+                )
             }
 
             repository.completeTransaction(transaction, transactionItems, updatedProducts)
             val receipt = generateReceipt(txId, dateLong, currentUserName, currentItems, total, paymentMethod, paid, changeAmount, currentDiscount)
             _receiptText.value = receipt
+
+            // Reset state keranjang & input
             _cart.value = emptyList()
             amountPaidInput = ""
             discountAmount = 0.0
             paymentMethod = "CASH"
+
+            // Trigger sinkronisasi otomatis
             repository.syncData()
         }
     }

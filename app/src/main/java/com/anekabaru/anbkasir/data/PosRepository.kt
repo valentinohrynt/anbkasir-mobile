@@ -9,7 +9,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.Flow
-import java.util.UUID
 import javax.inject.Inject
 
 class PosRepository @Inject constructor(
@@ -19,7 +18,6 @@ class PosRepository @Inject constructor(
     private val TAG = "PosRepository"
 
     val products = db.posDao().getAllProducts()
-    val suppliers = db.posDao().getSuppliers()
     val salesHistory = db.posDao().getAllTransactions()
 
     suspend fun saveProduct(p: ProductEntity) {
@@ -33,19 +31,16 @@ class PosRepository @Inject constructor(
     }
 
     suspend fun deleteProduct(id: String) {
-        db.posDao().deleteProductSoft(id)
+        // Menggunakan timestamp untuk soft delete agar sinkron dengan struktur baru
+        db.posDao().deleteProductSoft(id, System.currentTimeMillis())
         safeSync()
     }
 
-    suspend fun completeTransaction(
-        tx: TransactionEntity,
-        items: List<TransactionItemEntity>,
-        products: List<ProductEntity>
-    ) {
+    suspend fun completeTransaction(tx: TransactionEntity, items: List<TransactionItemEntity>, updatedProducts: List<ProductEntity>) {
         db.withTransaction {
             db.posDao().insertTransaction(tx)
             db.posDao().insertTransactionItems(items)
-            products.forEach { db.posDao().updateProduct(it) }
+            updatedProducts.forEach { db.posDao().updateProduct(it) }
         }
     }
 
@@ -56,16 +51,16 @@ class PosRepository @Inject constructor(
     }
 
     suspend fun syncData() {
-        Log.d(TAG, "--- SYNC STARTED ---")
-
+        // 1. PUSH PRODUCTS (Termasuk yang is_deleted/deleted_at)
         try {
             val unsyncedProd = db.posDao().getUnsyncedProducts()
             if (unsyncedProd.isNotEmpty()) {
                 val res = api.pushProducts(unsyncedProd)
                 if (res.status == "success") db.posDao().markProductsSynced(res.syncedIds)
             }
-        } catch (e: Exception) { Log.e(TAG, "Prod Push Error: ${e.message}") }
+        } catch (e: Exception) { Log.e(TAG, "Prod push error: ${e.message}") }
 
+        // 2. PUSH TRANSACTIONS
         try {
             val unsyncedTx = db.posDao().getUnsyncedTransactions()
             if (unsyncedTx.isNotEmpty()) {
@@ -80,9 +75,17 @@ class PosRepository @Inject constructor(
                         amountPaid = tx.amountPaid,
                         changeAmount = tx.changeAmount,
                         discount = tx.discount,
+                        // Pastikan deletedAt dikirim ke server jika ada
+                        deletedAt = tx.deletedAt,
                         items = items.map {
                             TransactionItemSyncPayload(
-                                it.id, it.productId, it.productName, it.quantity, it.unit, it.priceSnapshot, it.subtotal
+                                id = it.id,
+                                productId = it.productId,
+                                productName = it.productName,
+                                quantity = it.quantity,
+                                unit = it.unit,
+                                priceSnapshot = it.priceSnapshot,
+                                subtotal = it.subtotal
                             )
                         }
                     )
@@ -90,19 +93,22 @@ class PosRepository @Inject constructor(
                 val res = api.pushTransactions(payload)
                 if (res.status == "success") db.posDao().markTransactionsSynced(res.syncedIds)
             }
-        } catch (e: Exception) { Log.e(TAG, "Tx Push Error: ${e.message}") }
+        } catch (e: Exception) { Log.e(TAG, "Tx push error: ${e.message}") }
 
+        // 3. PULL PRODUCTS & CLEANUP
         try {
             val serverProds = api.getProducts()
             if (serverProds.isNotEmpty()) {
-                db.posDao().deleteSyncedProducts()
+                // Hapus data lokal yang memang sudah ditandai dihapus dan sudah sinkron
+                db.posDao().deleteSyncedDeletedProducts()
+                db.posDao().deleteSyncedDeletedTransactions()
+
+                // Masukkan data baru/update dari server
                 db.posDao().insertProducts(serverProds.map {
-                    it.copy(isSynced = true, unitPrices = it.unitPrices ?: emptyMap())
+                    it.copy(isSynced = true)
                 })
             }
-        } catch (e: Exception) { Log.e(TAG, "Prod Pull Error: ${e.message}") }
-
-        Log.d(TAG, "--- SYNC COMPLETED ---")
+        } catch (e: Exception) { Log.e(TAG, "Pull error: ${e.message}") }
     }
 
     suspend fun getTransactionItems(txId: String) = db.posDao().getItemsForTransaction(txId)

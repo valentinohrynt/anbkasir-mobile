@@ -5,7 +5,7 @@ import com.google.gson.annotations.SerializedName
 data class SyncResponse(
     val status: String,
     @SerializedName("syncedIds")
-    val syncedIds: List<String>
+    val syncedIds: List<String> = emptyList()
 )
 
 data class TransactionSyncPayload(
@@ -22,6 +22,9 @@ data class TransactionSyncPayload(
     @SerializedName("change_amount")
     val changeAmount: Double,
     val discount: Double,
+    // Tambahkan deleted_at agar server tahu jika transaksi dihapus
+    @SerializedName("deleted_at")
+    val deletedAt: Long? = null,
     val items: List<TransactionItemSyncPayload>
 )
 
@@ -35,6 +38,8 @@ data class TransactionItemSyncPayload(
     val unit: String,
     @SerializedName("price_snapshot")
     val priceSnapshot: Double,
+    // Tambahkan @SerializedName jika backend menggunakan snake_case untuk subtotal
+    @SerializedName("subtotal")
     val subtotal: Double
 )
 

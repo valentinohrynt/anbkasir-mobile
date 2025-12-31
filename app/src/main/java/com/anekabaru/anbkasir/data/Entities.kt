@@ -34,7 +34,7 @@ data class ProductEntity(
     @SerializedName("unit_prices") val unitPrices: Map<String, Double> = emptyMap(),
     @SerializedName("updated_at") val updatedAt: Long = System.currentTimeMillis(),
     @SerializedName("is_synced") val isSynced: Boolean = false,
-    @SerializedName("is_deleted") val isDeleted: Boolean = false
+    @SerializedName("deleted_at") val deletedAt: Long? = null
 )
 
 @Entity(tableName = "transactions")
@@ -42,16 +42,13 @@ data class TransactionEntity(
     @PrimaryKey val id: String,
     @SerializedName("total_amount") val totalAmount: Double,
     @SerializedName("cashier_name") val cashierName: String,
-
-    // [PERBAIKAN] Ubah dari String ke Long agar match dengan SyncModel
     val date: Long,
-
     @SerializedName("payment_method") val paymentMethod: String = "CASH",
     @SerializedName("amount_paid") val amountPaid: Double = 0.0,
     @SerializedName("change_amount") val changeAmount: Double = 0.0,
     val discount: Double = 0.0,
     @SerializedName("is_synced") val isSynced: Boolean = false,
-    @SerializedName("is_deleted") val isDeleted: Boolean = false
+    @SerializedName("deleted_at") val deletedAt: Long? = null
 )
 
 @Entity(tableName = "transaction_items")
@@ -74,7 +71,7 @@ data class SupplierEntity(
     val address: String,
     @SerializedName("updated_at") val updatedAt: Long = System.currentTimeMillis(),
     @SerializedName("is_synced") val isSynced: Boolean = false,
-    @SerializedName("is_deleted") val isDeleted: Boolean = false
+    @SerializedName("deleted_at") val deletedAt: Long? = null
 )
 
 @Entity(tableName = "purchases")
