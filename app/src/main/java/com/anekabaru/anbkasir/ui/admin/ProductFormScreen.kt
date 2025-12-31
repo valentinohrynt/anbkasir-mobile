@@ -3,16 +3,7 @@ package com.anekabaru.anbkasir.ui.admin
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -23,29 +14,8 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.QrCodeScanner
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
-import androidx.compose.material3.SnackbarHost
-import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -57,14 +27,7 @@ import com.anekabaru.anbkasir.ui.PosViewModel
 import com.anekabaru.anbkasir.ui.components.AppSnackbar
 import com.anekabaru.anbkasir.ui.components.BarcodeScanner
 import com.anekabaru.anbkasir.ui.components.SnackbarType
-import com.anekabaru.anbkasir.ui.theme.BackgroundApp
-import com.anekabaru.anbkasir.ui.theme.BorderColor
-import com.anekabaru.anbkasir.ui.theme.BrandBlue
-import com.anekabaru.anbkasir.ui.theme.SystemRed
-import com.anekabaru.anbkasir.ui.theme.TextPrimary
-import com.anekabaru.anbkasir.ui.theme.TextSecondary
-import com.anekabaru.anbkasir.ui.theme.TextTertiary
-import com.anekabaru.anbkasir.ui.theme.White
+import com.anekabaru.anbkasir.ui.theme.*
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -73,26 +36,22 @@ fun ProductFormScreen(
     viewModel: PosViewModel,
     onBack: () -> Unit
 ) {
-    LocalContext.current
     val productToEdit = viewModel.selectedProduct
     val isEditMode = productToEdit != null
 
-    // State Dasar
     var name by remember { mutableStateOf(productToEdit?.name ?: "") }
     var category by remember { mutableStateOf(productToEdit?.category ?: "General") }
     var barcode by remember { mutableStateOf(productToEdit?.barcode ?: "") }
     var stock by remember { mutableStateOf(productToEdit?.stock?.toString() ?: "0") }
-    var buyPrice by remember { mutableStateOf(productToEdit?.buyPrice?.toString() ?: "0") }
+    var buyPrice by remember { mutableStateOf(productToEdit?.buyPrice?.toInt()?.toString() ?: "0") }
 
-    // State Wholesale (Grosir)
     var wholesalePrice by remember { mutableStateOf(productToEdit?.wholesalePrice?.toInt()?.toString() ?: "0") }
     var wholesaleThreshold by remember { mutableStateOf(productToEdit?.wholesaleThreshold?.toString() ?: "0") }
 
-    // State untuk Multi-Satuan
     var unitPriceList by remember {
         mutableStateOf(
             if (productToEdit != null && productToEdit.unitPrices.isNotEmpty()) {
-                productToEdit.unitPrices.map { it.key to it.value.toInt().toString() }
+                productToEdit.unitPrices.map { it.key to "%.0f".format(it.value) }
             } else {
                 listOf("Pcs" to "0")
             }
@@ -100,8 +59,6 @@ fun ProductFormScreen(
     }
 
     var showScanner by remember { mutableStateOf(false) }
-
-    // --- SNACKBAR SETUP ---
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var snackbarType by remember { mutableStateOf(SnackbarType.INFO) }
@@ -166,13 +123,9 @@ fun ProductFormScreen(
                             showFeedback("Nama produk wajib diisi", SnackbarType.ERROR)
                             return@IconButton
                         }
-                        if (unitPriceList.any { it.first.isEmpty() }) {
-                            showFeedback("Semua nama satuan wajib diisi", SnackbarType.ERROR)
-                            return@IconButton
-                        }
 
                         val unitPricesMap = unitPriceList.associate { it.first to (it.second.toDoubleOrNull() ?: 0.0) }
-                        val defaultSellPrice = unitPricesMap.values.firstOrNull() ?: 0.0
+                        val defaultSellPrice = unitPricesMap["Pcs"] ?: unitPricesMap.values.firstOrNull() ?: 0.0
 
                         if (isEditMode && productToEdit != null) {
                             val updatedProduct = productToEdit.copy(
@@ -185,7 +138,8 @@ fun ProductFormScreen(
                                 wholesalePrice = wholesalePrice.toDoubleOrNull() ?: 0.0,
                                 wholesaleThreshold = wholesaleThreshold.toIntOrNull() ?: 0,
                                 unitPrices = unitPricesMap,
-                                updatedAt = System.currentTimeMillis()
+                                updatedAt = System.currentTimeMillis(),
+                                isSynced = false
                             )
                             viewModel.updateProduct(updatedProduct)
                         } else {
@@ -217,7 +171,6 @@ fun ProductFormScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // --- CARD 1: INFO DASAR ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -225,7 +178,6 @@ fun ProductFormScreen(
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     CleanTextField(name, { name = it }, "Product Name")
-
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CleanTextField(category, { category = it }, "Category", Modifier.weight(1f))
                         CleanTextField(
@@ -245,7 +197,6 @@ fun ProductFormScreen(
 
             Text("Stock & Cost", style = MaterialTheme.typography.titleSmall, color = TextSecondary)
 
-            // --- CARD 2: STOK & MODAL ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
@@ -259,14 +210,13 @@ fun ProductFormScreen(
                 }
             }
 
-            // --- CARD 3: GROSIR (WHOLESALE) ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text("Wholesale / Grosir (Optional)", style = MaterialTheme.typography.labelMedium, color = BrandBlue)
+                    Text("Wholesale / Grosir (Aturan Eceran)", style = MaterialTheme.typography.labelMedium, color = BrandBlue)
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         CleanTextField(wholesalePrice, { if(it.all { c -> c.isDigit() }) wholesalePrice = it }, "Wholesale Price", Modifier.weight(1f), true)
                         CleanTextField(wholesaleThreshold, { if(it.all { c -> c.isDigit() }) wholesaleThreshold = it }, "Min Qty", Modifier.weight(0.6f), true)
@@ -274,7 +224,6 @@ fun ProductFormScreen(
                 }
             }
 
-            // --- HEADER MULTI SATUAN ---
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -288,17 +237,12 @@ fun ProductFormScreen(
                 }
             }
 
-            // --- CARD 4: LIST HARGA SATUAN ---
             Card(
                 colors = CardDefaults.cardColors(containerColor = White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (unitPriceList.isEmpty()) {
-                        Text("Add at least one unit (e.g. Pcs)", color = TextTertiary, style = MaterialTheme.typography.bodySmall)
-                    }
-
                     unitPriceList.forEachIndexed { index, (unitName, priceStr) ->
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -314,7 +258,6 @@ fun ProductFormScreen(
                                 label = "Unit (ex: Pcs)",
                                 modifier = Modifier.weight(1f)
                             )
-
                             CleanTextField(
                                 value = priceStr,
                                 onValueChange = { newPrice ->
@@ -328,15 +271,12 @@ fun ProductFormScreen(
                                 modifier = Modifier.weight(1f),
                                 isNumber = true
                             )
-
                             if (unitPriceList.size > 1) {
-                                IconButton(
-                                    onClick = {
-                                        val newList = unitPriceList.toMutableList()
-                                        newList.removeAt(index)
-                                        unitPriceList = newList
-                                    }
-                                ) {
+                                IconButton(onClick = {
+                                    val newList = unitPriceList.toMutableList()
+                                    newList.removeAt(index)
+                                    unitPriceList = newList
+                                }) {
                                     Icon(Icons.Default.Delete, "Remove", tint = SystemRed)
                                 }
                             }
@@ -344,24 +284,14 @@ fun ProductFormScreen(
                     }
                 }
             }
-
             Spacer(modifier = Modifier.height(30.dp))
         }
     }
 
     if (showScanner) {
-        Dialog(
-            onDismissRequest = { showScanner = false },
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
+        Dialog(onDismissRequest = { showScanner = false }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
             Surface(modifier = Modifier.fillMaxSize()) {
-                BarcodeScanner(
-                    onCodeScanned = { code ->
-                        barcode = code
-                        showScanner = false
-                    },
-                    onClose = { showScanner = false }
-                )
+                BarcodeScanner(onCodeScanned = { code -> barcode = code; showScanner = false }, onClose = { showScanner = false })
             }
         }
     }

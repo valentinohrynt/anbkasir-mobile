@@ -4,12 +4,13 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface PosDao {
     // --- PRODUCTS ---
-    @Query("SELECT * FROM products ORDER BY name ASC")
+    @Query("SELECT * FROM products WHERE isDeleted = 0 ORDER BY name ASC")
     fun getAllProducts(): Flow<List<ProductEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -18,23 +19,12 @@ interface PosDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertProducts(products: List<ProductEntity>)
 
-    // [REVISI] Menambahkan parameter 'up' (unitPrices) ke dalam Query UPDATE
-    @Query("UPDATE products SET name=:n, buyPrice=:b, sellPrice=:s, wholesalePrice=:w, wholesaleThreshold=:t, stock=:st, category=:c, barcode=:bar, unitPrices=:up, updatedAt=:u, isSynced=0 WHERE id=:id")
-    suspend fun updateProduct(
-        id: String,
-        n: String,
-        b: Double,
-        s: Double,
-        w: Double,
-        t: Int,
-        st: Int,
-        c: String,
-        bar: String?,
-        up: Map<String, Double>, // Parameter Baru
-        u: Long
-    )
+    @Update
+    suspend fun updateProduct(product: ProductEntity)
 
-    // NEW: Delete product
+    @Query("UPDATE products SET isDeleted = 1, isSynced = 0 WHERE id = :id")
+    suspend fun deleteProductSoft(id: String)
+
     @Query("DELETE FROM products WHERE id = :id")
     suspend fun deleteProduct(id: String)
 
@@ -51,8 +41,7 @@ interface PosDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTransactionItems(items: List<TransactionItemEntity>)
 
-    // NEW: Get Sales History
-    @Query("SELECT * FROM transactions ORDER BY date DESC")
+    @Query("SELECT * FROM transactions WHERE isDeleted = 0 ORDER BY date DESC")
     fun getAllTransactions(): Flow<List<TransactionEntity>>
 
     @Query("SELECT * FROM transactions WHERE isSynced = 0")
@@ -64,15 +53,15 @@ interface PosDao {
     @Query("SELECT * FROM transaction_items WHERE transactionId = :txId")
     suspend fun getItemsForTransaction(txId: String): List<TransactionItemEntity>
 
-    // --- REPORTING ---
-    @Query("SELECT SUM(totalAmount) FROM transactions WHERE date BETWEEN :start AND :end")
+    // [PERBAIKAN] Parameter start dan end sekarang Long agar match dengan Entity
+    @Query("SELECT SUM(totalAmount) FROM transactions WHERE date BETWEEN :start AND :end AND isDeleted = 0")
     fun getSalesTotal(start: Long, end: Long): Flow<Double?>
 
-    @Query("SELECT COUNT(*) FROM transactions WHERE date BETWEEN :start AND :end")
+    @Query("SELECT COUNT(*) FROM transactions WHERE date BETWEEN :start AND :end AND isDeleted = 0")
     fun getTxCount(start: Long, end: Long): Flow<Int>
 
     // --- SUPPLIERS ---
-    @Query("SELECT * FROM suppliers")
+    @Query("SELECT * FROM suppliers WHERE isDeleted = 0")
     fun getSuppliers(): Flow<List<SupplierEntity>>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -97,9 +86,7 @@ interface PosDao {
     @Query("UPDATE purchases SET isSynced = 1 WHERE id IN (:ids)")
     suspend fun markPurchasesSynced(ids: List<String>)
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertTransactions(transactions: List<TransactionEntity>)
-
+    // --- CLEANUP ---
     @Query("DELETE FROM products WHERE isSynced = 1")
     suspend fun deleteSyncedProducts()
 

@@ -543,7 +543,6 @@ fun ProductSelectionDialog(
 
                                 Spacer(modifier = Modifier.width(12.dp))
 
-                                // Icon jadi abu jika habis
                                 Icon(
                                     Icons.Default.AddCircle,
                                     null,
